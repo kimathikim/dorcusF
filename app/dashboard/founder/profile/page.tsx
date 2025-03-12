@@ -37,12 +37,52 @@ export default function FounderProfilePage() {
       setPitchDeck(e.target.files[0]);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Founder Profile updated successfully!");
-  };
 
+    const formData = new FormData();
+    if (pitchDeck) {
+      formData.append("pitch_deck", pitchDeck);
+    }
+    formData.append("data", JSON.stringify({
+      startup_name: startupName,
+      mission_statement: mission,
+      industry: startupIndustry,
+      funding_stage: fundingStage,
+      funding_allocation: fundAllocation,
+      business_model: businessModel,
+      revenue_streams: revenueStreams,
+      traction: traction,
+      scaling_potential: scalingPotential,
+      competition: competition,
+      leadership_team: leadershipTeam,
+      team_size: parseInt(teamSize),
+      location: startupLocation,
+      startup_website: startupWebsite,
+    }));
+
+    try {
+      const response = await fetch("http://127.0.0.1:8080/api/v1/founder/profile", {
+        method: "PATCH",
+        body: formData,
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
+
+      if (response.ok) {
+        //redirect to dashboard
+
+        alert("Founder Profile updated successfully!");
+        return window.location.href = "/dashboard/founder";
+      } else {
+        alert("Failed to update profile.");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("An error occurred while updating the profile.");
+    }
+  };
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -54,7 +94,7 @@ export default function FounderProfilePage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                
+
                 {/* Startup Name & Mission */}
                 <Label>Startup Name</Label>
                 <Input placeholder="Startup XYZ" value={startupName} onChange={(e) => setStartupName(e.target.value)} required />

@@ -1,8 +1,10 @@
 "use client";
 
+
 import { useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +24,8 @@ export default function InvestorProfilePage() {
   const [exitStrategy, setExitStrategy] = useState("");
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [regionsOfInterest, setRegionsOfInterest] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const industries = ["Technology", "Healthcare", "Finance", "Education", "E-commerce", "Clean Energy", "AI/ML", "Blockchain", "SaaS", "Consumer Apps"];
   const fundingStages = ["Pre-seed", "Seed", "Series A", "Series B", "Series C+"];
@@ -44,9 +48,53 @@ export default function InvestorProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Investor Profile updated successfully!");
-  };
+    setIsLoading(true);
 
+    const data = JSON.stringify({
+      investment_portfolio: selectedIndustries,
+      total_invested: parseFloat(investmentMin) + parseFloat(investmentMax),
+      investor_type: investorType,
+      thesis: investmentThesis,
+      preferred_funding_stage: fundingStage,
+      investment_range: `${investmentMin}-${investmentMax}`,
+      investment_frequency: investmentFrequency,
+      risk_tolerance: riskTolerance,
+      exit_strategy: exitStrategy,
+      preferred_industries: selectedIndustries,
+      preferred_regions: regionsOfInterest,
+    });
+
+    try {
+      const response = await fetch("http://127.0.0.1:8080/api/v1/investor/profile", {
+        method: "PATCH",
+        body: data,
+        headers: {
+          "content-type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
+
+      if (response.ok) {
+        toast({
+          title: "successful",
+          description: "Your Profile has been updated successfully!",
+        });
+
+      } else {
+        toast({
+          title: "Failed",
+          description: "Failed to update profile.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while updating the profile.",
+      });
+
+    }
+  };
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -58,7 +106,7 @@ export default function InvestorProfilePage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                
+
                 {/* Investor Type */}
                 <Label>Investor Type</Label>
                 <Select value={investorType} onValueChange={setInvestorType}>

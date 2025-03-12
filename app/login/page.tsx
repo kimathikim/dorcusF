@@ -33,56 +33,61 @@ export default function LoginPage() {
       console.log(response);
       const data = await response.json();
       console.log(data);
-      const roles = await fetch("http://127.0.0.1:8080/api/v1/auth/me", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${data.accessToken}`
-        },
-      });
-
-      setIsLoading(true);
-      if (roles.ok) {
-        toast({
-          title: "auth2",
-          description: "accepted",
-        })
-      }
-      const jsonRoles = roles.json()
-      console.log(jsonRoles)
-      setIsLoading(true);
+        localStorage.setItem("authToken", data.token);
 
       if (response.ok) {
-        toast({
-          title: "Login successful",
-          description: "Welcome back to Blackv!",
+        const roles = await fetch("http://127.0.0.1:8080/api/v1/get/me", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+          },
         });
+        const authData = await roles.json();
+        console.log(authData);
+        setIsLoading(true);
+        if (roles.ok) {
+          toast({
+            title: "auth2",
+            description: "accepted",
+          })
+        }
+        setIsLoading(true);
 
-        if (data.roles.length > 1) {
-          const selectedRole = window.prompt(
-            `You have multiple roles: ${data.roles.join(", ")}. Please enter the role you want to use:`
-          );
+        if (roles.ok) {
+          toast({
+            title: "Login successful",
+            description: "Welcome back to Blackv!",
+          });
 
-          if (selectedRole && data.roles.includes(selectedRole)) {
-            window.location.href = `/dashboard/${selectedRole}`;
+          if (authData.roles.length > 1) {
+            const selectedRole = window.prompt(
+              `You have multiple roles: ${authData.roles.join(", ")}. Please enter the role you want to use:`
+            );
+
+            if (selectedRole && authData.roles.includes(selectedRole)) {
+              window.location.href = `/dashboard/${selectedRole}`;
+            } else {
+              toast({
+                title: "Invalid role",
+                description: "The selected role is not valid.",
+              });
+            }
           } else {
-            toast({
-              title: "Invalid role",
-              description: "The selected role is not valid.",
-            });
+            const role = authData.roles[0];
+            window.location.href = `/dashboard/${role}`;
           }
-        } else {
-          const role = data.roles[0];
-          window.location.href = `/dashboard/${role}`;
         }
       } else {
         toast({
           title: "Login failed",
           description: data.message || "Invalid credentials",
         });
-      }
-    } catch (error) {
+
       setIsLoading(false);
+      }
+
+    } catch (error) {
       toast({
         title: "Login failed",
         description: "An error occurred. Please try again.",
