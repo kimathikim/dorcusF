@@ -14,7 +14,7 @@ export default function AboutPage() {
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
               <div className="space-y-4">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">About blackv</h1>
+                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">About FundMe</h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
                   We're on a mission to transform how startups and investors connect, making the fundraising process more efficient, transparent, and successful for everyone involved.
                 </p>
@@ -44,7 +44,7 @@ export default function AboutPage() {
                   Bridging the gap between innovation and capital
                 </h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  blackv was founded in 2025 with a clear vision: to create a more efficient and equitable fundraising ecosystem. We believe that great ideas deserve the right backing, and smart capital deserves to find the most promising ventures.
+                  FundMi was founded in 2025 with a clear vision: to create a more efficient and equitable fundraising ecosystem. We believe that great ideas deserve the right backing, and smart capital deserves to find the most promising ventures.
                 </p>
               </div>
             </div>

@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'blackv - Connecting Startups with Investors',
+  title: 'FundMe - Connecting Startups with Investors',
   description: 'Empowering Startups, Connecting Investors. Find the perfect match for your startup or investment portfolio.',
 };
 

@@ -57,7 +57,7 @@ export default function LoginPage() {
         if (roles.ok) {
           toast({
             title: "Login successful",
-            description: "Welcome back to Blackv!",
+            description: "Welcome back to FundMe!",
           });
 
           if (authData.roles.length > 1) {

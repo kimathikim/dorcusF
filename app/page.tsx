@@ -22,7 +22,7 @@ export default function Home() {
                   Empowering Startups, Connecting Investors
                 </h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Blackv bridges the gap between innovative founders and strategic investors. 
+                  FundMe bridges the gap between innovative founders and strategic investors. 
                   Find your perfect match and accelerate your growth journey.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -202,7 +202,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    "Blackv connected us with investors who truly understood our vision. We secured our seed round in half the time we expected."
+                    "FundMe connected us with investors who truly understood our vision. We secured our seed round in half the time we expected."
                   </p>
                 </CardContent>
               </Card>
@@ -228,7 +228,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    "The quality of startups I've discovered through Blackv has been exceptional. The platform's filtering tools save me countless hours."
+                    "The quality of startups I've discovered through FundMe has been exceptional. The platform's filtering tools save me countless hours."
                   </p>
                 </CardContent>
               </Card>
@@ -254,7 +254,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    "The learning resources and mentor connections through Blackv were game-changers for our sustainability startup."
+                    "The learning resources and mentor connections through FundMe were game-changers for our sustainability startup."
                   </p>
                 </CardContent>
               </Card>
@@ -271,7 +271,7 @@ export default function Home() {
                   Ready to transform your startup journey?
                 </h2>
                 <p className="mx-auto max-w-[600px] text-primary-foreground/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Join thousands of founders and investors already using Blackv to connect, learn, and grow.
+                  Join thousands of founders and investors already using FundMe to connect, learn, and grow.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">

@@ -56,7 +56,7 @@ export default function LearningPage() {
         "Solution & Value Proposition",
         "Business Model & Go-to-Market Strategy",
         "Financial Projections & Funding Ask",
-        "Team & Traction"
+       "Team & Traction"
       ]
     },
     {
