@@ -71,7 +71,7 @@ export default function ContactPage() {
                     <Mail className="h-6 w-6 text-primary mt-1" />
                     <div className="space-y-1">
                       <h3 className="font-bold">Email</h3>
-                      <p className="text-muted-foreground">info@blackv.com</p>
+                      <p className="text-muted-foreground">info@fundme.com</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-4">
@@ -187,13 +187,13 @@ export default function ContactPage() {
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">Do you offer demos of the platform?</h3>
                 <p className="text-muted-foreground">
-                  Yes, you can schedule a personalized demo with our team to see how blackv works.
+                  Yes, you can schedule a personalized demo with our team to see how fundme works.
                 </p>
               </div>
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">How can I report a technical issue?</h3>
                 <p className="text-muted-foreground">
-                  You can report technical issues through this contact form or by emailing support@blackv.com.
+                  You can report technical issues through this contact form or by emailing support@fundmecom.
                 </p>
               </div>
               <div className="space-y-4">

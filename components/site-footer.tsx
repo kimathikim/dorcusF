@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="container py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <h3 className="text-lg font-bold">blackv</h3>
+            <h3 className="text-lg font-bold">fundMe</h3>
             <p className="text-sm text-muted-foreground">
               Empowering startups and connecting investors since 2025.
             </p>
@@ -88,7 +88,7 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          <p>© 2025 blackv. All rights reserved.</p>
+          <p>© 2025 FundMe. All rights reserved.</p>
         </div>
       </div>
     </footer>

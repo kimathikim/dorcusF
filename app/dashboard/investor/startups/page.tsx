@@ -380,575 +380,575 @@ export default function StartupDiscoveryPage() {
   return (
 
     <DashboardShell userType="investor">
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1 container mx-auto py-10 px-4">
-        {selectedStartup ? (
-          // 🔹 Detailed Startup View
-          <div>
-            <Button variant="outline" onClick={() => setSelectedStartup(null)} className="mb-6">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Discovery
-            </Button>
+      <div className="flex min-h-screen flex-col">
+        <main className="flex-1 container mx-auto py-10 px-4">
+          {selectedStartup ? (
+            // 🔹 Detailed Startup View
+            <div>
+              <Button variant="outline" onClick={() => setSelectedStartup(null)} className="mb-6">
+                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Discovery
+              </Button>
 
-            {/* Startup Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 border-2 border-primary/10">
-                  <AvatarImage src={selectedStartup.Avatar} alt={selectedStartup.StartupName} />
-                  <AvatarFallback>{selectedStartup.StartupName.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h1 className="text-3xl font-bold">{selectedStartup.StartupName}</h1>
-                  <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                    <Building2 className="h-4 w-4" />
-                    <span>{selectedStartup.Industry}</span>
-                    <span className="text-muted-foreground">•</span>
-                    <MapPin className="h-4 w-4" />
-                    <span>{selectedStartup.Location}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 self-start md:self-center">
-                <Button variant="outline" size="sm" onClick={() => toggleBookmark(selectedStartup.UserID)}>
-                  {selectedStartup.Bookmarked ? (
-                    <>
-                      <BookmarkCheck className="h-4 w-4 mr-2" /> Bookmarked
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="h-4 w-4 mr-2" /> Bookmark
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Share2 className="h-4 w-4 mr-2" /> Share
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => addToDeals(selectedStartup)}>
-                  Add to Deals
-                </Button>
-                <Button>
-                  <Mail className="h-4 w-4 mr-2" /> Contact Founder
-                </Button>
-              </div>
-            </div>
-
-            {/* Match Score */}
-            <div className="bg-primary/5 rounded-lg p-4 mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-lg font-bold">
-                  {selectedStartup.MatchScore}%
-                </div>
-                <div>
-                  <h3 className="font-medium">Match Score</h3>
-                  <p className="text-sm text-muted-foreground">Based on your investment preferences</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{selectedStartup.FundingStage}</Badge>
-                <Badge variant="outline">{formatCurrency(selectedStartup.FundRequired)}</Badge>
-                {selectedStartup.Tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Tabs for Startup Details */}
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="business">Business Model</TabsTrigger>
-                <TabsTrigger value="team">Team & Funding</TabsTrigger>
-                <TabsTrigger value="traction">Traction & Market</TabsTrigger>
-              </TabsList>
-
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Target className="h-5 w-5 mr-2 text-primary" />
-                      Mission & Vision
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.MissionStatement}</p>
-                  </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Calendar className="h-5 w-5 mr-2 text-primary" />
-                        Founded
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{selectedStartup.Founded}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date().getFullYear() - Number.parseInt(selectedStartup.Founded)} years in operation
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Globe className="h-5 w-5 mr-2 text-primary" />
-                        Online Presence
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <a
-                        href={selectedStartup.StartupWebsite}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center text-primary hover:underline"
-                      >
-                        {selectedStartup.StartupWebsite} <ExternalLink className="h-4 w-4 ml-1" />
-                      </a>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-primary" />
-                      Pitch Deck
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {selectedStartup.PitchDeck ? (
-                      <div className="flex flex-col gap-4">
-                        <div className="bg-muted/50 rounded-lg h-40 flex items-center justify-center">
-                          <FileText className="h-12 w-12 text-muted-foreground" />
-                        </div>
-                        <Button className="w-full sm:w-auto">
-                          View Pitch Deck <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">No pitch deck uploaded</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Business Model Tab */}
-              <TabsContent value="business" className="space-y-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Briefcase className="h-5 w-5 mr-2 text-primary" />
-                      Business Model
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.BusinessModel}</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <DollarSign className="h-5 w-5 mr-2 text-primary" />
-                      Revenue Streams
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.RevenueStreams}</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Target className="h-5 w-5 mr-2 text-primary" />
-                      Competition
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.Competition}</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Team & Funding Tab */}
-              <TabsContent value="team" className="space-y-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Users className="h-5 w-5 mr-2 text-primary" />
-                      Leadership Team
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.LeadershipTeam}</p>
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Team Size</h4>
-                      <Badge variant="outline">{selectedStartup.TeamSize}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <DollarSign className="h-5 w-5 mr-2 text-primary" />
-                      Funding Requirements
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="bg-primary/10 rounded-full p-4">
-                        <DollarSign className="h-8 w-8 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-3xl font-bold">{formatCurrency(selectedStartup.FundRequired)}</p>
-                        <p className="text-sm text-muted-foreground">{selectedStartup.FundingStage} Round</p>
-                      </div>
-                    </div>
-
-                    <h4 className="font-medium mb-2">Fund Allocation</h4>
-                    <p className="text-muted-foreground mb-4">{selectedStartup.FundAllocation}</p>
-
-                    {/* Visual representation of fund allocation */}
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">R&D</span>
-                          <span className="text-sm font-medium">40%</span>
-                        </div>
-                        <Progress value={40} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Marketing</span>
-                          <span className="text-sm font-medium">30%</span>
-                        </div>
-                        <Progress value={30} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Operations</span>
-                          <span className="text-sm font-medium">20%</span>
-                        </div>
-                        <Progress value={20} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Legal</span>
-                          <span className="text-sm font-medium">10%</span>
-                        </div>
-                        <Progress value={10} className="h-2" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Traction & Market Tab */}
-              <TabsContent value="traction" className="space-y-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <TrendingUp className="h-5 w-5 mr-2 text-primary" />
-                      Traction & Metrics
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.Traction}</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <BarChart className="h-5 w-5 mr-2 text-primary" />
-                      Scaling Potential
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{selectedStartup.ScalingPotential}</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            {/* Founder Contact */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <User className="h-5 w-5 mr-2 text-primary" />
-                  Founder Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedStartup.Avatar} alt={selectedStartup.Name} />
-                    <AvatarFallback>{selectedStartup.Name.charAt(0)}</AvatarFallback>
+              {/* Startup Header */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-primary/10">
+                    <AvatarImage src={selectedStartup.Avatar} alt={selectedStartup.StartupName} />
+                    <AvatarFallback>{selectedStartup.StartupName.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-medium">{selectedStartup.Name}</h3>
-                    <p className="text-sm text-muted-foreground">{selectedStartup.Email}</p>
+                    <h1 className="text-3xl font-bold">{selectedStartup.StartupName}</h1>
+                    <div className="flex items-center gap-2 text-muted-foreground mt-1">
+                      <Building2 className="h-4 w-4" />
+                      <span>{selectedStartup.Industry}</span>
+                      <span className="text-muted-foreground">•</span>
+                      <MapPin className="h-4 w-4" />
+                      <span>{selectedStartup.Location}</span>
+                    </div>
                   </div>
-                  <Button className="sm:ml-auto">
+                </div>
+
+                <div className="flex gap-2 self-start md:self-center">
+                  <Button variant="outline" size="sm" onClick={() => toggleBookmark(selectedStartup.UserID)}>
+                    {selectedStartup.Bookmarked ? (
+                      <>
+                        <BookmarkCheck className="h-4 w-4 mr-2" /> Bookmarked
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="h-4 w-4 mr-2" /> Bookmark
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Share
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => addToDeals(selectedStartup)}>
+                    Add to Deals
+                  </Button>
+                  <Button onClick={() => window.location.href = `mailto:${selectedStartup.Email}?subject=Interest in ${selectedStartup.StartupName}`}>
                     <Mail className="h-4 w-4 mr-2" /> Contact Founder
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          // 🔹 Startup Discovery List View
-          <div>
-            <div className="flex flex-col gap-4 mb-8">
-              <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Startup Discovery</h1>
-                <div className="flex gap-2">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                  >
-                    Grid
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                  >
-                    List
-                  </Button>
+              </div>
+
+              {/* Match Score */}
+              <div className="bg-primary/5 rounded-lg p-4 mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-lg font-bold">
+                    {selectedStartup.MatchScore}%
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Match Score</h3>
+                    <p className="text-sm text-muted-foreground">Based on your investment preferences</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{selectedStartup.FundingStage}</Badge>
+                  <Badge variant="outline">{formatCurrency(selectedStartup.FundRequired)}</Badge>
+                  {selectedStartup.Tags.map((tag) => (
+                    <Badge key={tag} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search startups by name, industry, or description..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+              {/* Tabs for Startup Details */}
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="business">Business Model</TabsTrigger>
+                  <TabsTrigger value="team">Team & Funding</TabsTrigger>
+                  <TabsTrigger value="traction">Traction & Market</TabsTrigger>
+                </TabsList>
+
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Target className="h-5 w-5 mr-2 text-primary" />
+                        Mission & Vision
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.MissionStatement}</p>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <Calendar className="h-5 w-5 mr-2 text-primary" />
+                          Founded
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{selectedStartup.Founded}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date().getFullYear() - Number.parseInt(selectedStartup.Founded)} years in operation
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <Globe className="h-5 w-5 mr-2 text-primary" />
+                          Online Presence
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <a
+                          href={selectedStartup.StartupWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center text-primary hover:underline"
+                        >
+                          {selectedStartup.StartupWebsite} <ExternalLink className="h-4 w-4 ml-1" />
+                        </a>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-primary" />
+                        Pitch Deck
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedStartup.PitchDeck ? (
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-muted/50 rounded-lg h-40 flex items-center justify-center">
+                            <FileText className="h-12 w-12 text-muted-foreground" />
+                          </div>
+                          <Button className="w-full sm:w-auto">
+                            View Pitch Deck <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">No pitch deck uploaded</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Business Model Tab */}
+                <TabsContent value="business" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Briefcase className="h-5 w-5 mr-2 text-primary" />
+                        Business Model
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.BusinessModel}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <DollarSign className="h-5 w-5 mr-2 text-primary" />
+                        Revenue Streams
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.RevenueStreams}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Target className="h-5 w-5 mr-2 text-primary" />
+                        Competition
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.Competition}</p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Team & Funding Tab */}
+                <TabsContent value="team" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Users className="h-5 w-5 mr-2 text-primary" />
+                        Leadership Team
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.LeadershipTeam}</p>
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-2">Team Size</h4>
+                        <Badge variant="outline">{selectedStartup.TeamSize}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <DollarSign className="h-5 w-5 mr-2 text-primary" />
+                        Funding Requirements
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-primary/10 rounded-full p-4">
+                          <DollarSign className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-3xl font-bold">{formatCurrency(selectedStartup.FundRequired)}</p>
+                          <p className="text-sm text-muted-foreground">{selectedStartup.FundingStage} Round</p>
+                        </div>
+                      </div>
+
+                      <h4 className="font-medium mb-2">Fund Allocation</h4>
+                      <p className="text-muted-foreground mb-4">{selectedStartup.FundAllocation}</p>
+
+                      {/* Visual representation of fund allocation */}
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">R&D</span>
+                            <span className="text-sm font-medium">40%</span>
+                          </div>
+                          <Progress value={40} className="h-2" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Marketing</span>
+                            <span className="text-sm font-medium">30%</span>
+                          </div>
+                          <Progress value={30} className="h-2" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Operations</span>
+                            <span className="text-sm font-medium">20%</span>
+                          </div>
+                          <Progress value={20} className="h-2" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Legal</span>
+                            <span className="text-sm font-medium">10%</span>
+                          </div>
+                          <Progress value={10} className="h-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Traction & Market Tab */}
+                <TabsContent value="traction" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <TrendingUp className="h-5 w-5 mr-2 text-primary" />
+                        Traction & Metrics
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.Traction}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart className="h-5 w-5 mr-2 text-primary" />
+                        Scaling Potential
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{selectedStartup.ScalingPotential}</p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+
+              {/* Founder Contact */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="h-5 w-5 mr-2 text-primary" />
+                    Founder Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={selectedStartup.Avatar} alt={selectedStartup.Name} />
+                      <AvatarFallback>{selectedStartup.Name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-medium">{selectedStartup.Name}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedStartup.Email}</p>
+                    </div>
+                    <Button onClick={() => window.location.href = `mailto:${selectedStartup.Email}?subject=Interest in ${selectedStartup.StartupName}`}>
+                      <Mail className="h-4 w-4 mr-2" /> Contact Founder
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            // 🔹 Startup Discovery List View
+            <div>
+              <div className="flex flex-col gap-4 mb-8">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-3xl font-bold">Startup Discovery</h1>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                    >
+                      Grid
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                    >
+                      List
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search startups by name, industry, or description..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {industries.map((industry) => (
+                            <SelectItem key={industry} value={industry}>
+                              {industry === "all" ? "All Industries" : industry}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Select value={stageFilter} onValueChange={setStageFilter}>
                       <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Industry" />
+                        <SelectValue placeholder="Funding Stage" />
                       </SelectTrigger>
                       <SelectContent>
-                        {industries.map((industry) => (
-                          <SelectItem key={industry} value={industry}>
-                            {industry === "all" ? "All Industries" : industry}
+                        {fundingStages.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage === "all" ? "All Stages" : stage}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Sort By" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="match">Match Score</SelectItem>
+                        <SelectItem value="funding">Funding Amount</SelectItem>
+                        <SelectItem value="name">Startup Name</SelectItem>
+                        <SelectItem value="newest">Newest First</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  <Select value={stageFilter} onValueChange={setStageFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Funding Stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fundingStages.map((stage) => (
-                        <SelectItem key={stage} value={stage}>
-                          {stage === "all" ? "All Stages" : stage}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Sort By" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="match">Match Score</SelectItem>
-                      <SelectItem value="funding">Funding Amount</SelectItem>
-                      <SelectItem value="name">Startup Name</SelectItem>
-                      <SelectItem value="newest">Newest First</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
-            </div>
 
-            {filteredStartups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="bg-muted/30 rounded-full p-6 mb-4">
-                  <Search className="h-10 w-10 text-muted-foreground" />
+              {filteredStartups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="bg-muted/30 rounded-full p-6 mb-4">
+                    <Search className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h2 className="text-xl font-semibold mb-2">No startups found</h2>
+                  <p className="text-muted-foreground max-w-md">
+                    We couldn't find any startups matching your search criteria. Try adjusting your filters or search
+                    query.
+                  </p>
                 </div>
-                <h2 className="text-xl font-semibold mb-2">No startups found</h2>
-                <p className="text-muted-foreground max-w-md">
-                  We couldn't find any startups matching your search criteria. Try adjusting your filters or search
-                  query.
-                </p>
-              </div>
-            ) : viewMode === "grid" ? (
-              // Grid View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredStartups.map((founder) => (
-                  <Card
-                    key={founder.UserID}
-                    className="overflow-hidden hover:shadow-lg transition-all border-2 hover:border-primary/20"
-                  >
-                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4">
-                      <div className="flex justify-between items-start">
-                        <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"} className="mb-2">
-                          {founder.MatchScore}% Match
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleBookmark(founder.UserID)
-                          }}
-                        >
-                          {founder.Bookmarked ? (
-                            <BookmarkCheck className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Bookmark className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 border-2 border-background">
-                          <AvatarImage src={founder.Avatar} alt={founder.StartupName} />
-                          <AvatarFallback>{founder.StartupName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-bold text-lg line-clamp-1">{founder.StartupName}</h3>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            <span>{founder.Location}</span>
+              ) : viewMode === "grid" ? (
+                // Grid View
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredStartups.map((founder) => (
+                    <Card
+                      key={founder.UserID}
+                      className="overflow-hidden hover:shadow-lg transition-all border-2 hover:border-primary/20"
+                    >
+                      <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4">
+                        <div className="flex justify-between items-start">
+                          <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"} className="mb-2">
+                            {founder.MatchScore}% Match
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleBookmark(founder.UserID)
+                            }}
+                          >
+                            {founder.Bookmarked ? (
+                              <BookmarkCheck className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Bookmark className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 border-2 border-background">
+                            <AvatarImage src={founder.Avatar} alt={founder.StartupName} />
+                            <AvatarFallback>{founder.StartupName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-bold text-lg line-clamp-1">{founder.StartupName}</h3>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              <span>{founder.Location}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <CardContent className="pt-4">
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        <Badge variant="outline">{founder.Industry}</Badge>
-                        <Badge variant="outline">{founder.FundingStage}</Badge>
-                        <Badge variant="outline">{formatCurrency(founder.FundRequired)}</Badge>
-                      </div>
+                      <CardContent className="pt-4">
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          <Badge variant="outline">{founder.Industry}</Badge>
+                          <Badge variant="outline">{founder.FundingStage}</Badge>
+                          <Badge variant="outline">{formatCurrency(founder.FundRequired)}</Badge>
+                        </div>
 
-                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{founder.MissionStatement}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{founder.MissionStatement}</p>
 
-                      <div className="flex items-center text-sm text-muted-foreground mb-4">
-                        <Users className="h-4 w-4 mr-1" />
-                        <span>{founder.TeamSize}</span>
-                        <span className="mx-2">•</span>
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span>Founded {founder.Founded}</span>
-                      </div>
-                    </CardContent>
+                        <div className="flex items-center text-sm text-muted-foreground mb-4">
+                          <Users className="h-4 w-4 mr-1" />
+                          <span>{founder.TeamSize}</span>
+                          <span className="mx-2">•</span>
+                          <Calendar className="h-4 w-4 mr-1" />
+                          <span>Founded {founder.Founded}</span>
+                        </div>
+                      </CardContent>
 
-                    <CardFooter className="border-t bg-muted/10 pt-4">
-                      <Button className="w-full" onClick={() => setSelectedStartup(founder)}>
-                        View Details
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              // List View
-              <div className="space-y-4">
-                {filteredStartups.map((founder) => (
-                  <Card
-                    key={founder.UserID}
-                    className="overflow-hidden hover:shadow-md transition-all border hover:border-primary/20"
-                  >
-                    <div className="flex flex-col md:flex-row">
-                      <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 md:w-64 flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-center mb-3">
-                            <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"}>
-                              {founder.MatchScore}% Match
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleBookmark(founder.UserID)
-                              }}
-                            >
-                              {founder.Bookmarked ? (
-                                <BookmarkCheck className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Bookmark className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <Avatar className="h-10 w-10 border-2 border-background">
-                              <AvatarImage src={founder.Avatar} alt={founder.StartupName} />
-                              <AvatarFallback>{founder.StartupName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h3 className="font-bold line-clamp-1">{founder.StartupName}</h3>
-                              <div className="flex items-center text-sm text-muted-foreground">
-                                <MapPin className="h-3 w-3 mr-1" />
-                                <span>{founder.Location}</span>
+                      <CardFooter className="border-t bg-muted/10 pt-4">
+                        <Button className="w-full" onClick={() => setSelectedStartup(founder)}>
+                          View Details
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                // List View
+                <div className="space-y-4">
+                  {filteredStartups.map((founder) => (
+                    <Card
+                      key={founder.UserID}
+                      className="overflow-hidden hover:shadow-md transition-all border hover:border-primary/20"
+                    >
+                      <div className="flex flex-col md:flex-row">
+                        <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 md:w-64 flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"}>
+                                {founder.MatchScore}% Match
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleBookmark(founder.UserID)
+                                }}
+                              >
+                                {founder.Bookmarked ? (
+                                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Bookmark className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <Avatar className="h-10 w-10 border-2 border-background">
+                                <AvatarImage src={founder.Avatar} alt={founder.StartupName} />
+                                <AvatarFallback>{founder.StartupName.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-bold line-clamp-1">{founder.StartupName}</h3>
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  <span>{founder.Location}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
+
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="outline">{founder.Industry}</Badge>
+                            <Badge variant="outline">{founder.FundingStage}</Badge>
+                          </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="outline">{founder.Industry}</Badge>
-                          <Badge variant="outline">{founder.FundingStage}</Badge>
-                        </div>
-                      </div>
+                        <CardContent className="flex-1 p-4">
+                          <div className="flex flex-col h-full justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{formatCurrency(founder.FundRequired)}</span>
+                                <span className="text-muted-foreground">•</span>
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">{founder.TeamSize}</span>
+                                <span className="text-muted-foreground">•</span>
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">Founded {founder.Founded}</span>
+                              </div>
 
-                      <CardContent className="flex-1 p-4">
-                        <div className="flex flex-col h-full justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{formatCurrency(founder.FundRequired)}</span>
-                              <span className="text-muted-foreground">•</span>
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">{founder.TeamSize}</span>
-                              <span className="text-muted-foreground">•</span>
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Founded {founder.Founded}</span>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                                {founder.MissionStatement}
+                              </p>
                             </div>
 
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                              {founder.MissionStatement}
-                            </p>
+                            <div className="flex justify-end">
+                              <Button onClick={() => setSelectedStartup(founder)}>View Details</Button>
+                            </div>
                           </div>
-
-                          <div className="flex justify-end">
-                            <Button onClick={() => setSelectedStartup(founder)}>View Details</Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+                        </CardContent>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </DashboardShell>
   )
 }

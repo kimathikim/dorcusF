@@ -105,7 +105,7 @@ export default function AboutPage() {
                   Our Team
                 </div>
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-                  Meet the people behind blackv
+                  Meet the people behind FundMe
                 </h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Our diverse team brings together expertise from venture capital, entrepreneurship, and technology.

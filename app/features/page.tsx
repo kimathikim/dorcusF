@@ -17,7 +17,7 @@ export default function FeaturesPage() {
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">Platform Features</h1>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Discover the powerful tools and features that make Blackv the leading platform for connecting startups and investors.
+                  Discover the powerful tools and features that make fundMe the leading platform for connecting startups and investors.
                 </p>
               </div>
             </div>
@@ -321,7 +321,7 @@ export default function FeaturesPage() {
                   Ready to experience these features?
                 </h2>
                 <p className="mx-auto max-w-[600px] text-primary-foreground/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Join Blackv today and transform how you fundraise or invest.
+                  Join fundMew today and transform how you fundraise or invest.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">

@@ -42,32 +42,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 import { Bell } from "lucide-react"
 
 
-const [timeRange, setTimeRange] = useState("month")
-const [notifications, setNotifications] = useState([])
-const [showNotifications, setShowNotifications] = useState(false)
-
-
-export async function getNotifications() {
-  const response = await fetch("http://localhost:8080/api/v1/founder/notifications", {
-    headers: {
-      "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error("Failed to fetch notifications")
-  }
-  const data = await response.json()
-  return data
-}
-
-useEffect(() => {
-  async function fetchNotifications() {
-    const data = await getNotifications()
-    setNotifications(data)
-  }
-  fetchNotifications()
-}, [])
-
 export default function FounderDashboardPage() {
   const [timeRange, setTimeRange] = useState("month")
 

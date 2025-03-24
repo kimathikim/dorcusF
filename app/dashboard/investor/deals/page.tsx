@@ -98,7 +98,6 @@ const mockDeals = [
     ],
   }
 ]
-
 type Deal = (typeof mockDeals)[0]
 
 // Define pipeline stages
@@ -135,6 +134,13 @@ export default function DealFlowPage() {
   const [negotiationAmount, setNegotiationAmount] = useState("")
   const [showNegotiationModal, setShowNegotiationModal] = useState(false)
   const [negotiationDealId, setNegotiationDealId] = useState<string | null>(null)
+
+  const [newMeetingTitle, setNewMeetingTitle] = useState("");
+  const [newMeetingStartTime, setNewMeetingStartTime] = useState("");
+  const [newMeetingEndTime, setNewMeetingEndTime] = useState("");
+  const [newMeetingGoogleMeetURL, setNewMeetingGoogleMeetURL] = useState("");
+  const [newMeetingNotes, setNewMeetingNotes] = useState("");
+
   useEffect(() => {
     async function fetchDeals() {
       try {
@@ -199,6 +205,53 @@ export default function DealFlowPage() {
     }
     fetchDeals();
   }, []);
+
+  const scheduleMeeting = async (dealId: string) => {
+    if (!newMeetingTitle || !newMeetingStartTime || !newMeetingEndTime || !newMeetingGoogleMeetURL) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}/meetings`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: newMeetingTitle,
+          start_time: new Date(newMeetingStartTime).toISOString(),
+          end_time: new Date(newMeetingEndTime).toISOString(),
+          google_meet_url: newMeetingGoogleMeetURL,
+          notes: newMeetingNotes,
+        }),
+      });
+
+      if (response.ok) {
+        const newMeeting = await response.json();
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) =>
+            deal.id === dealId
+              ? {
+                ...deal,
+                meetings: [...deal.meetings, newMeeting],
+                lastActivity: new Date().toISOString(),
+              }
+              : deal
+          )
+        );
+        setNewMeetingTitle("");
+        setNewMeetingStartTime("");
+        setNewMeetingEndTime("");
+        setNewMeetingGoogleMeetURL("");
+        setNewMeetingNotes("");
+        console.log("Meeting successfully scheduled.");
+      } else {
+        console.error("Failed to schedule meeting:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error scheduling meeting:", error);
+    }
+  };
   // Extract unique industries for filter
   const industries = useMemo(() => {
     const uniqueIndustries = Array.from(new Set(deals.map((d: Deal) => d.industry)))
@@ -410,7 +463,6 @@ export default function DealFlowPage() {
       if (newStage === "negotiation") {
         setNegotiationDealId(dealId);
         setShowNegotiationModal(true);
-        return;
       }
 
       const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}`, {
@@ -438,45 +490,45 @@ export default function DealFlowPage() {
   };
 
 
-const submitNegotiationInvestment = async () => {
-  if (!negotiationDealId || !negotiationAmount) return;
+  const submitNegotiationInvestment = async () => {
+    // if (!negotiationDealId || !negotiationAmount) return;
 
-  try {
-    const token = localStorage.getItem("authToken");
+    try {
+      const token = localStorage.getItem("authToken");
 
-    const response = await fetch(`http://localhost:8080/api/v1/dealflow/${negotiationDealId}/invest`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ investmentAmount: parseFloat(negotiationAmount) }),
-    });
+      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${negotiationDealId}/invest`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ investmentAmount: parseFloat(negotiationAmount) }),
+      });
 
-    if (response.ok) {
-      setDeals((prevDeals) =>
-        prevDeals.map((deal) =>
-          deal.id === negotiationDealId
-            ? {
+      if (response.ok) {
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) =>
+            deal.id === negotiationDealId
+              ? {
                 ...deal,
                 stage: "negotiation",
                 fundRequired: deal.fundRequired - parseFloat(negotiationAmount),
                 lastActivity: new Date().toISOString(),
               }
-            : deal
-        )
-      );
+              : deal
+          )
+        );
 
-      setShowNegotiationModal(false);
-      setNegotiationAmount("");
-      console.log("Investment successfully added.");
-    } else {
-      console.error("Failed to submit investment:", response.statusText);
+        setShowNegotiationModal(false);
+        setNegotiationAmount("");
+        console.log("Investment successfully added.");
+      } else {
+        console.error("Failed to submit investment:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error submitting investment:", error);
     }
-  } catch (error) {
-    console.error("Error submitting investment:", error);
-  }
-};
+  };
   const updateDealPriority = async (dealId: string, newPriority: string) => {
     try {
       const token = localStorage.getItem("authToken");
@@ -759,7 +811,8 @@ const submitNegotiationInvestment = async () => {
                                 className: `h-5 w-5 ${pipelineStages.find((s) => s.id === selectedDeal.stage)?.color}`
                               })
                             )}
-                            <span className="font-medium">{pipelineStages.find((s) => s.id === selectedDeal.stage)?.name}</span>                         </div>
+                            <span className="font-medium">{pipelineStages.find((s) => s.id === selectedDeal.stage)?.name}</span>
+                          </div>
 
                           <h3 className="font-medium mb-2">Timeline</h3>
                           <div className="space-y-2">
@@ -778,6 +831,13 @@ const submitNegotiationInvestment = async () => {
 
                         <div className="flex-1">
                           <h3 className="font-medium mb-2">Next Steps</h3>
+                          {selectedDeal.stage === "negotiation" && (
+                            <div className="mb-4">
+                              <Button variant="outline" onClick={() => setShowNegotiationModal(true)}>
+                                <DollarSign className="h-4 w-4 mr-2" /> Invest in Company
+                              </Button>
+                            </div>
+                          )}
                           {selectedDeal.tasks.filter(task => !task.completed).length > 0 ? (
                             <div className="space-y-2">
                               {selectedDeal.tasks
@@ -804,8 +864,7 @@ const submitNegotiationInvestment = async () => {
                           ) : (
                             <p className="text-sm text-muted-foreground">No pending tasks</p>
                           )}
-                        </div>
-                      </div>
+                        </div>                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -976,14 +1035,76 @@ const submitNegotiationInvestment = async () => {
                   </Card>
                 </TabsContent>
 
-                {/* Meetings Tab */}
+
                 <TabsContent value="meetings" className="space-y-6 mt-6">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle>Meetings & Calls</CardTitle>
-                      <Button size="sm">
-                        <PlusCircle className="h-4 w-4 mr-2" /> Schedule Meeting
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <PlusCircle className="h-4 w-4 mr-2" /> Schedule Meeting
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Schedule New Meeting</DialogTitle>
+                            <DialogDescription>
+                              Enter the details for the new meeting.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="meeting-title">Title</Label>
+                              <Input
+                                id="meeting-title"
+                                placeholder="Meeting Title"
+                                value={newMeetingTitle}
+                                onChange={(e) => setNewMeetingTitle(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="start-time">Start Time</Label>
+                              <Input
+                                id="start-time"
+                                type="datetime-local"
+                                value={newMeetingStartTime}
+                                onChange={(e) => setNewMeetingStartTime(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="end-time">End Time</Label>
+                              <Input
+                                id="end-time"
+                                type="datetime-local"
+                                value={newMeetingEndTime}
+                                onChange={(e) => setNewMeetingEndTime(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="google-meet-url">Google Meet URL</Label>
+                              <Input
+                                id="google-meet-url"
+                                placeholder="Google Meet URL"
+                                value={newMeetingGoogleMeetURL}
+                                onChange={(e) => setNewMeetingGoogleMeetURL(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="meeting-notes">Notes</Label>
+                              <Textarea
+                                id="meeting-notes"
+                                placeholder="Additional Notes"
+                                value={newMeetingNotes}
+                                onChange={(e) => setNewMeetingNotes(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button onClick={() => scheduleMeeting(selectedDeal.id)}>Schedule Meeting</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </CardHeader>
                     <CardContent>
                       {selectedDeal.meetings.length > 0 ? (
@@ -1029,16 +1150,11 @@ const submitNegotiationInvestment = async () => {
                           <CalendarClock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                           <h3 className="font-medium mb-1">No meetings yet</h3>
                           <p className="text-sm text-muted-foreground mb-4">Schedule your first meeting with this startup</p>
-                          <Button>
-                            <PlusCircle className="h-4 w-4 mr-2" /> Schedule Meeting
-                          </Button>
                         </div>
                       )}
                     </CardContent>
                   </Card>
                 </TabsContent>
-
-                {/* Documents Tab */}
                 <TabsContent value="documents" className="space-y-6 mt-6">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1368,6 +1484,8 @@ const submitNegotiationInvestment = async () => {
                 </div>
               ) : (
                 // List View
+
+
                 <div className="space-y-3">
                   {filteredDeals.map(deal => (
                     <Card
@@ -1445,30 +1563,30 @@ const submitNegotiationInvestment = async () => {
         </main>
       </div>
     </DashboardShell>
-      //
-      // <Dialog open={showNegotiationModal} onOpenChange={setShowNegotiationModal}>
-      //   <DialogContent className="sm:max-w-[425px]">
-      //     <DialogHeader>
-      //       <DialogTitle>Investment Negotiation</DialogTitle>
-      //       <DialogDescription>Enter the amount you're ready to invest in this startup.</DialogDescription>
-      //     </DialogHeader>
-      //     <div className="grid gap-4 py-4">
-      //       <div className="grid gap-2">
-      //         <Label htmlFor="investment-amount">Investment Amount</Label>
-      //         <Input
-      //           id="investment-amount"
-      //           type="number"
-      //           placeholder="Enter amount"
-      //           value={negotiationAmount}
-      //           onChange={(e) => setNegotiationAmount(e.target.value)}
-      //         />
-      //       </div>
-      //     </div>
-      //     <DialogFooter>
-      //       <Button onClick={submitNegotiationInvestment}>Submit Investment</Button>
-      //     </DialogFooter>
-      //   </DialogContent>
-      // </Dialog>
+    //
+    // <Dialog open={showNegotiationModal} onOpenChange={setShowNegotiationModal}>
+    //   <DialogContent className="sm:max-w-[425px]">
+    //     <DialogHeader>
+    //       <DialogTitle>Investment Negotiation</DialogTitle>
+    //       <DialogDescription>Enter the amount you're ready to invest in this startup.</DialogDescription>
+    //     </DialogHeader>
+    //     <div className="grid gap-4 py-4">
+    //       <div className="grid gap-2">
+    //         <Label htmlFor="investment-amount">Investment Amount</Label>
+    //         <Input
+    //           id="investment-amount"
+    //           type="number"
+    //           placeholder="Enter amount"
+    //           value={negotiationAmount}
+    //           onChange={(e) => setNegotiationAmount(e.target.value)}
+    //         />
+    //       </div>
+    //     </div>
+    //     <DialogFooter>
+    //       <Button onClick={submitNegotiationInvestment}>Submit Investment</Button>
+    //     </DialogFooter>
+    //   </DialogContent>
+    // </Dialog>
   );
 }
 
@@ -1485,8 +1603,107 @@ function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
   )
 }
 
-// Missing Checkbox component
-function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
+  // Missing Checkbox component
+  function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
+    return (
+      <div
+        className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}
+        onClick={onCheckedChange}
+      >
+        {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+      </div>
+    )
+  }
+
+  // Investment Modal
+  const [showInvestmentModal, setShowInvestmentModal] = useState(false);
+  const [investmentAmount, setInvestmentAmount] = useState("");
+  const [investmentDealId, setInvestmentDealId] = useState<string | null>(null);
+
+  const submitInvestment = async () => {
+    if (!investmentDealId || !investmentAmount) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${investmentDealId}/invest`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ investmentAmount: parseFloat(investmentAmount) }),
+
+
+      if (response.ok) {
+        // Update UI after successful investment
+        const updatedDeal = await response.json();
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) => (deal.id === investmentDealId ? updatedDeal : deal))
+        );
+        setShowInvestmentModal(false);
+        setInvestmentAmount("");
+        console.log("Investment successfully submitted.");
+      } else {
+        console.error("Failed to submit investment:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error submitting investment:", error);
+    }
+  };
+
+  const openInvestmentModal = (dealId: string) => {
+    setInvestmentDealId(dealId);
+    setShowInvestmentModal(true);
+  };
+
+  return (
+    <DashboardShell userType="investor">
+      {/* ... existing code ... */}
+
+      {/* Investment Modal */}
+      <Dialog open={showInvestmentModal} onOpenChange={setShowInvestmentModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Investment Quotation</DialogTitle>
+            <DialogDescription>Enter your investment amount.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="investment-amount">Investment Amount</Label>
+              <Input
+                id="investment-amount"
+                type="number"
+                placeholder="Enter amount"
+                value={investmentAmount}
+                onChange={(e) => setInvestmentAmount(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={submitInvestment}>Submit Investment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ... existing code ... */}
+
+      {/* Add openInvestmentModal call in the appropriate place, for example: */}
+      {filteredDeals.map(deal => (
+        <Card
+          key={deal.id}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setSelectedDeal(deal)}
+        >
+          {/* ... existing code ... */}
+          <Button onClick={() => openInvestmentModal(deal.id)}>Invest</Button> {/* Add this button */}
+          {/* ... existing code ... */}
+        </Card>
+      ))}
+
+      {/* ... rest of the code ... */}
+    </DashboardShell>
+  );
+}
   return (
     <div
       className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}

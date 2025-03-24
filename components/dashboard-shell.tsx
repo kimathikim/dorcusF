@@ -1,6 +1,7 @@
 "use client"
 
 import { type ReactNode, useState, useEffect } from "react"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils"
 import {
   Bell,
   BookOpen,
+  EditIcon, TrashIcon,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -61,7 +63,9 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState(3);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   const [userData, setUserData] = useState({
     name: userType === "founder" ? "Sarah Johnson" : "Alex Morgan",
     email: userType === "founder" ? "sarah@innovatech.co" : "alex@venturecap.com",
@@ -72,6 +76,7 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
 
   useEffect(() => {
     handleUserData();
+    fetchNotifications();
   }, []);
   // Define navigation items based on user type
   const founderNavItems: NavItem[] = [
@@ -106,12 +111,12 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
       label: "Resources",
       icon: <BookOpen className="h-5 w-5" />,
     },
-    {
-      href: "/dashboard/founder/messages",
-      label: "Messages",
-      icon: <MessageSquare className="h-5 w-5" />,
-      badge: "5",
-    },
+    // {
+    //   href: "/dashboard/founder/messages",
+    //   label: "Messages",
+    //   icon: <MessageSquare className="h-5 w-5" />,
+    //   badge: "5",
+    // },
   ]
 
   const investorNavItems: NavItem[] = [
@@ -156,12 +161,12 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
     //     { href: "/reports", label: "Reports" },
     //   ],
     // },
-    {
-      href: "/messages",
-      label: "Messages",
-      icon: <MessageSquare className="h-5 w-5" />,
-      badge: "3",
-    },
+    // {
+    //   href: "/messages",
+    //   label: "Messages",
+    //   icon: <MessageSquare className="h-5 w-5" />,
+    //   badge: "3",
+    // },
   ]
 
   const navItems = userType === "founder" ? founderNavItems : investorNavItems
@@ -279,12 +284,11 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
 
   const handleUserData = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8080/api/v1/investor/');
+      const response = await fetch(`http://127.0.0.1:8080/api/v1/${userType}/`);
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
       }
       const data = await response.json();
-      // Update userData with fetched data
       const userData = {
         name: `${data.FirstName} ${data.LastName}`,
         email: data.Email,
@@ -299,7 +303,60 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
     }
   };
 
-  return (
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notifications`, {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
+      }
+      const data = await response.json();
+      console.log(data);
+      setNotifications(data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleUpdateNotification = async (id, updatedData) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notifications/${id}`, {
+        method: 'PUT',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update notification");
+      }
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error updating notification:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notification/${id}`, {
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
+      console.log(response);
+      if (!response.ok) {
+        throw new Error("Failed to delete notification");
+      }
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  }; return (
     <div className="flex min-h-screen flex-col bg-muted/30">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -362,11 +419,11 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
+                  <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>
                     <Bell className="h-5 w-5" />
-                    {notifications > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                        {notifications}
+                    {notifications && notifications.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-medium text-primary-foreground">
+                        {notifications.length}
                       </span>
                     )}
                   </Button>
@@ -377,7 +434,29 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
               </Tooltip>
             </TooltipProvider>
 
-            {/* Help */}
+            {showNotifications && (
+              <div className="absolute right-5 top-0 mt-2 w-100 bg-white shadow-lg rounded-lg z-50">
+                <div className="p-1">
+                  {notifications && notifications.length > 0 ? (
+                    notifications.map((notification: { ID: string; Message: string }) => (
+                      <div key={notification.ID} className="flex justify-between items-center mb-2">
+                        <p>{notification.Message}</p>
+                        <div className="flex gap-2">
+                          <Button size="icon" onClick={() => handleUpdateNotification(notification.ID, { message: "Updated message" })}>
+                            <EditIcon className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="destructive" onClick={() => handleDeleteNotification(notification.ID)}>
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p>No notifications available</p>
+                  )}
+                </div>
+              </div>
+            )}            {/* Help */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
