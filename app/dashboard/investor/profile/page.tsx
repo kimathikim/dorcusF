@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
 
 import { useState, useEffect } from "react";
 import DashboardShell from "@/components/dashboard-shell"
@@ -89,12 +90,33 @@ export default function InvestorProfilePage() {
   const industries = ["Technology", "Healthcare", "Finance", "Education", "E-commerce", "Clean Energy", "AI/ML", "Blockchain", "SaaS", "Consumer Apps"];
   const regions = ["North America", "Europe", "Asia", "Africa", "South America"];
 
+  // Load user data from localStorage
+  useEffect(() => {
+    const storedUserData = localStorage.getItem("userData")
+    if (storedUserData) {
+      try {
+        const parsedUserData = JSON.parse(storedUserData)
+        setUserData({
+          name: parsedUserData.firstName && parsedUserData.lastName 
+            ? `${parsedUserData.firstName} ${parsedUserData.lastName}`
+            : parsedUserData.name || "User",
+          email: parsedUserData.email || "",
+          roles: parsedUserData.roles || ["Investor"],
+          avatarUrl: parsedUserData.avatar || "/placeholder.svg?height=100&width=100",
+          joinedDate: parsedUserData.joinedDate || "March 2023",
+        })
+      } catch (error) {
+        console.error("Error parsing user data:", error)
+      }
+    }
+  }, [])
+
   // Fetch investor profile data on mount
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
         const token = localStorage.getItem("authToken");
-        const response = await fetch("http://localhost:8080/api/v1/investor/profile", {
+        const response = await fetch(`${API_BASE_URL}/investor/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -136,19 +158,26 @@ export default function InvestorProfilePage() {
     setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   };
 
+  const handleInvestmentMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInvestmentMin(e.target.value);
+  };
+
+  const handleInvestmentMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInvestmentMax(e.target.value);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Calculate total_invested and investment_range from min and max fields
-    const totalInvested = parseFloat(investmentMin) + parseFloat(investmentMax);
-    const investmentRange = `${investmentMin}-${investmentMax}`;
+    
+    // Prepare payload with correct field names to match backend
     const payload = {
-      investment_portfolio: formData.preferred_industries, // or use a dedicated portfolio if separate
-      total_invested: totalInvested,
+      total_invested: parseFloat(String(formData.total_invested || "0")),
+      // Combine investment min and max into a single range string
+      investment_range: `${investmentMin}-${investmentMax}`,
       investor_type: formData.investor_type,
       thesis: formData.thesis,
       preferred_funding_stage: formData.preferred_funding_stage,
-      investment_range: investmentRange,
       investment_frequency: formData.investment_frequency,
       risk_tolerance: formData.risk_tolerance,
       exit_strategy: formData.exit_strategy,
@@ -157,25 +186,55 @@ export default function InvestorProfilePage() {
     };
 
     try {
-      const response = await fetch("http://localhost:8080/api/v1/investor/profile", {
+      const response = await fetch(`${API_BASE_URL}/investor/profile`, {
         method: "PATCH",
         body: JSON.stringify(payload),
         headers: {
-          "content-type": "application/json",
+          "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
       });
+      
       if (response.ok) {
         toast({
           title: "Success",
           description: "Your investor profile has been updated successfully!",
         });
-        router.push("/dashboard/investor");
+        setIsEditing(false);
+        // Refresh data after update
+        const fetchProfileData = async () => {
+          try {
+            const token = localStorage.getItem("authToken");
+            const response = await fetch(`${API_BASE_URL}/investor/profile`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              const data = await response.json();
+              // Assume data.investment_range is stored as "min-max"
+              if (data.investment_range) {
+                const [min, max] = data.investment_range.split("-");
+                setInvestmentMin(min);
+                setInvestmentMax(max);
+              }
+              if (data.preferred_industries === null) {
+                data.preferred_industries = [];
+              }
+              if (data.preferred_regions === null) {
+                data.preferred_regions = [];
+              }
+              setInvestorData(data);
+              setFormData(data);
+            }
+          } catch (error) {
+            console.error("Error fetching investor profile:", error);
+          }
+        };
+        fetchProfileData();
       } else {
         const errorData = await response.json();
         toast({
           title: "Failed",
-          description: `Failed to update profile: ${errorData.message}`,
+          description: `Failed to update profile: ${errorData.error || errorData.message || "Unknown error"}`,
         });
       }
     } catch (error) {
@@ -306,29 +365,31 @@ export default function InvestorProfilePage() {
                       </Select>
                     </div>
 
-                    {/* Row 4: Investment Range */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="investment_min">Investment Minimum ($)</Label>
-                        <Input
-                          id="investment_min"
-                          type="number"
-                          placeholder="Min"
-                          value={investmentMin}
-                          onChange={(e) => setInvestmentMin(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="investment_max">Investment Maximum ($)</Label>
-                        <Input
-                          id="investment_max"
-                          type="number"
-                          placeholder="Max"
-                          value={investmentMax}
-                          onChange={(e) => setInvestmentMax(e.target.value)}
-                          required
-                        />
+                    {/* Investment Range */}
+                    <div className="space-y-2">
+                      <Label>Investment Range</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Label htmlFor="investmentMin" className="text-sm">Minimum ($)</Label>
+                          <Input
+                            id="investmentMin"
+                            type="number"
+                            value={investmentMin}
+                            onChange={handleInvestmentMinChange}
+                            placeholder="Min investment"
+                          />
+                        </div>
+                        <span className="mt-6">-</span>
+                        <div className="flex-1">
+                          <Label htmlFor="investmentMax" className="text-sm">Maximum ($)</Label>
+                          <Input
+                            id="investmentMax"
+                            type="number"
+                            value={investmentMax}
+                            onChange={handleInvestmentMaxChange}
+                            placeholder="Max investment"
+                          />
+                        </div>
                       </div>
                     </div>
 

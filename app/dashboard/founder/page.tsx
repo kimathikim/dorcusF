@@ -1,7 +1,7 @@
 "use client"
-
-import { useState, useEffect } from "react"
+import { ReactNode } from "react"
 import DashboardShell from "@/components/dashboard-shell"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
@@ -36,14 +36,63 @@ import {
   LineElement,
   ArcElement,
 } from "chart.js"
+import { API_BASE_URL } from "@/lib/api-config"
+import axios from 'axios'
 
 // Register required chart components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement, ArcElement)
 import { Bell } from "lucide-react"
 
 
-export default function FounderDashboardPage() {
+// Custom Progress component
+const SimpleProgress = ({ value = 0, className = "" }) => {
+  return (
+    <div className={`relative h-4 w-full overflow-hidden rounded-full bg-secondary ${className}`}>
+      <div 
+        className="h-full w-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - value}%)` }}
+      />
+    </div>
+  );
+};
+
+export default function FounderDashboardPage(): ReactNode {
+  // Add state for fundraising data
+  const [fundraisingData, setFundraisingData] = useState({
+    totalRaised: 0,
+    fundingGoal: 0,
+    percentageComplete: 0,
+    numberOfInvestors: 0,
+    averageInvestment: 0,
+    monthlyRevenue: 0,
+    revenueGrowth: 0,
+    activeUsers: 0,
+    userGrowth: 0,
+    runway: 0,
+    runwayChange: 0,
+  })
+  const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState("month")
+  const [userCount, setUserCount] = useState(0)
+
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/user/count`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch user count");
+        }
+        const data = await response.json();
+        setUserCount(data.count);
+      } catch (error) {
+        console.error("Error fetching user count:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserCount();
+  }, []);
 
   // Enhanced color palette
   const colorPalette = {
@@ -61,8 +110,55 @@ export default function FounderDashboardPage() {
     infoLight: "rgba(6, 182, 212, 0.2)",
   }
 
+  // Fetch fundraising data from API
+  useEffect(() => {
+    const fetchFundraisingData = async () => {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem("authToken")
+        const userData = JSON.parse(localStorage.getItem("userData") || "{}")
+        
+        if (!token || !userData.id) {
+          console.error("Missing auth token or user ID")
+          return
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/founder/fundraising-summary`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch fundraising data")
+        }
+        
+        const data = await response.json()
+        setFundraisingData({
+          totalRaised: data.totalRaised || 0,
+          fundingGoal: data.fundingGoal || 750000, // Default if not set
+          percentageComplete: data.percentageComplete || 0,
+          numberOfInvestors: data.numberOfInvestors || 0,
+          averageInvestment: data.averageInvestment || 0,
+          monthlyRevenue: data.monthlyRevenue || 110000, // Default if not set
+          revenueGrowth: data.revenueGrowth || 22, // Default if not set
+          activeUsers: data.activeUsers || 12580, // Default if not set
+          userGrowth: data.userGrowth || 18, // Default if not set
+          runway: data.runway || 8, // Default if not set
+          runwayChange: data.runwayChange || 1.5, // Default if not set
+        })
+      } catch (error) {
+        console.error("Error fetching fundraising data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchFundraisingData()
+  }, [])
+
   // Sample Data for Charts with enhanced styling
-  const fundraisingData = {
+  const fundraisingChartData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
     datasets: [
       {
@@ -70,10 +166,9 @@ export default function FounderDashboardPage() {
         data: [100, 200, 300, 400, 500, 600],
         borderColor: colorPalette.secondary,
         backgroundColor: "transparent",
-        borderDashed: true,
         borderWidth: 2,
         pointRadius: 0,
-        type: "line",
+        borderDash: [5, 5], // Use borderDash instead of borderDashed
       },
       {
         label: "Funds Raised ($K)",
@@ -85,6 +180,12 @@ export default function FounderDashboardPage() {
         barThickness: 20,
       },
     ],
+    // Add these properties for the progress bar
+    totalRaised: 520000,
+    fundingGoal: 1000000,
+    percentageComplete: 52,
+    monthlyRevenue: 85000,
+    revenueGrowth: 12
   }
 
   const revenueGrowthData = {
@@ -475,20 +576,27 @@ export default function FounderDashboardPage() {
         </div>
 
         {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card className="overflow-hidden border-l-4 border-l-primary">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Funds Raised</p>
-                  <h3 className="text-2xl font-bold mt-1">$520,000</h3>
-                  <p className="text-xs text-muted-foreground mt-1">of $750,000 target</p>
+                  <h3 className="text-2xl font-bold mt-1">
+                    {formatCurrency(fundraisingData.totalRaised)}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    of {formatCurrency(fundraisingData.fundingGoal)} target
+                  </p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-primary" />
                 </div>
               </div>
-              <Progress value={69} className="h-2 mt-4" />
+              <SimpleProgress 
+                value={fundraisingData.percentageComplete} 
+                className="h-2 mt-4" 
+              />
             </CardContent>
           </Card>
 
@@ -498,10 +606,10 @@ export default function FounderDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Monthly Revenue</p>
                   <div className="flex items-center mt-1">
-                    <h3 className="text-2xl font-bold">$110,000</h3>
+                    <h3 className="text-2xl font-bold">{formatCurrency(fundraisingData.monthlyRevenue)}</h3>
                     <span className="flex items-center text-sm font-medium text-green-600 ml-2">
                       <ArrowUpRight className="h-4 w-4 mr-1" />
-                      22%
+                      {fundraisingData.revenueGrowth}%
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">vs last month</p>
@@ -519,7 +627,7 @@ export default function FounderDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Active Users</p>
                   <div className="flex items-center mt-1">
-                    <h3 className="text-2xl font-bold">12,580</h3>
+                    <h3 className="text-2xl font-bold">{userCount.toLocaleString()}</h3>
                     <span className="flex items-center text-sm font-medium text-green-600 ml-2">
                       <ArrowUpRight className="h-4 w-4 mr-1" />
                       18%
@@ -533,27 +641,6 @@ export default function FounderDashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="overflow-hidden border-l-4 border-l-amber-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Runway</p>
-                  <div className="flex items-center mt-1">
-                    <h3 className="text-2xl font-bold">8 months</h3>
-                    <span className="flex items-center text-sm font-medium text-green-600 ml-2">
-                      <ArrowUpRight className="h-4 w-4 mr-1" />
-                      1.5
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">vs last month</p>
-                </div>
-                <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-amber-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Charts Section */}
@@ -561,14 +648,13 @@ export default function FounderDashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <DollarSign className="h-5 w-5 mr-2 text-primary" />
-                Fundraising Progress
+                <DollarSign className="h-5 w-5 mr-2 text-primary" /> Fundraising Progress
               </CardTitle>
               <CardDescription>Monthly fundraising vs target</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
-                <Bar data={fundraisingData} options={barChartOptions} />
+                <Bar data={fundraisingChartData} options={barChartOptions} />
               </div>
             </CardContent>
           </Card>
@@ -587,37 +673,23 @@ export default function FounderDashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2 text-blue-600" />
-                Investor Interest
-              </CardTitle>
-              <CardDescription>Investors by stage in your pipeline</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <Doughnut data={investorInterestData} options={pieChartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Clock className="h-5 w-5 mr-2 text-amber-600" />
-                Burn Rate & Runway
-              </CardTitle>
-              <CardDescription>Monthly burn and remaining runway</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <Line data={burnRateData} options={burnRateOptions} />
-              </div>
-            </CardContent>
-          </Card>
         </div>
+
+        {/* Investor Interest - Full Width */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Users className="h-5 w-5 mr-2 text-blue-600" />
+              Investor Interest
+            </CardTitle>
+            <CardDescription>Investors by stage in your pipeline</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Doughnut data={investorInterestData} options={pieChartOptions} />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Investor Insights */}
         <Card>
@@ -708,34 +780,8 @@ export default function FounderDashboardPage() {
             </CardFooter>
           </Card>
         </div>
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2">
-                <Building2 className="h-6 w-6" />
-                <span>Update Profile</span>
-              </Button>
-              <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline">
-                <FileText className="h-6 w-6" />
-                <span>Edit Pitch Deck</span>
-              </Button>
-              <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline">
-                <Users className="h-6 w-6" />
-                <span>Find Investors</span>
-              </Button>
-              <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline">
-                <MessageSquare className="h-6 w-6" />
-                <span>Contact Support</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+ 
       </div>
     </DashboardShell>
   )
 }
-

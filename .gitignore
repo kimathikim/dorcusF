@@ -26,6 +26,9 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.production
+.env
+.env.*
 
 # vercel
 .vercel
@@ -33,3 +36,65 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Shell scripts (potentially containing sensitive information)
+*.sh
+deploy.sh
+deploy-all.sh
+redeploy-app.sh
+fix-502-error.sh
+fix-static-files.sh
+expose-container.sh
+docker-troubleshoot.sh
+find-hardcoded-urls.sh
+clear-cache.sh
+
+# Configuration files that might contain sensitive information
+*config*.json
+*secrets*.json
+*credentials*.json
+*auth*.json
+*token*.json
+*key*.json
+*password*.json
+*apikey*.json
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+logs/
+
+# IDE specific files
+.vscode
+.idea
+*.sublime-*
+*.swp
+*.swo
+
+# Sensitive documentation
+*credentials*.md
+*password*.md
+*secret*.md
+*token*.md
+*key*.md
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Database files
+*.sql
+*.sqlite
+*.db
+
+# Temporary files
+tmp/
+temp/

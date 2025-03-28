@@ -1,0 +1,9 @@
+# Run these commands in your terminal
+rm -rf .next
+npm run build
+
+# If using shadcn/ui, try updating the progress component
+npx shadcn-ui@latest add progress
+
+# Or update your dependencies
+npm update @radix-ui/react-progress

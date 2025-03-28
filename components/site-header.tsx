@@ -7,14 +7,20 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { ReactNode } from "react";
 
-export function SiteHeader() {
+interface SiteHeaderProps {
+  children?: ReactNode
+}
+
+export function SiteHeader({ children }: SiteHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b bg-background">
+      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
+          {children}
           <Link href="/" className="flex items-center space-x-2">
             <span className="font-bold text-2xl">FundMe</span>
           </Link>
@@ -67,7 +73,7 @@ export function SiteHeader() {
         </div>
 
         {/* Mobile Navigation Toggle */}
-        <div className="md:hidden flex items-center gap-4">
+        <div className="md:hidden flex items-center gap-4 ml-auto">
           <ModeToggle />
           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}

@@ -1,26 +1,32 @@
-# Use a base image appropriate for your application
-FROM node:18-alpine
+# Build stage
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Copy package files
+COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
-# Copy application code
+# Copy all files
 COPY . .
 
-# Build the application (if needed)
-# RUN npm run build
+# Build the app
+RUN npm run build
 
-# Expose the port your app runs on
-EXPOSE 3000
+# Production stage
+FROM nginx:alpine
 
-# Command to run the application
-CMD ["npm", "start"]
-````
+# Copy built static files from builder stage
+COPY --from=builder /app/out /usr/share/nginx/html
 
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx server
+CMD ["nginx", "-g", "daemon off;"]

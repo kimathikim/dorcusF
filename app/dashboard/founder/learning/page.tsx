@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import DashboardShell from "@/components/dashboard-shell";
 import Link from "next/link";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -27,7 +25,41 @@ import {
   Filter
 } from "lucide-react";
 
-export default function LearningPage() {
+interface ExternalResource {
+  type: "youtube" | "blog";
+  title: string;
+  url: string;
+  source?: string;
+  thumbnail?: string;
+}
+
+interface LearningResource {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  type: string;
+  duration: string;
+  level: string;
+  progress: number;
+  image: string;
+  modules: string[];
+  externalResources?: ExternalResource[];
+}
+
+// Custom Progress component without validation logic
+const SimpleProgress = ({ value = 0, className = "" }) => {
+  return (
+    <div className={`relative h-4 w-full overflow-hidden rounded-full bg-secondary ${className}`}>
+      <div 
+        className="h-full w-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - value}%)` }}
+      />
+    </div>
+  );
+};
+
+export default function LearningResourcesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -41,7 +73,7 @@ export default function LearningPage() {
     { id: "market", name: "Market Research" }
   ];
 
-  const learningResources = [
+  const learningResources: LearningResource[] = [
     {
       id: 1,
       title: "The Perfect Pitch Deck Structure",
@@ -57,7 +89,21 @@ export default function LearningPage() {
         "Solution & Value Proposition",
         "Business Model & Go-to-Market Strategy",
         "Financial Projections & Funding Ask",
-       "Team & Traction"
+        "Team & Traction"
+      ],
+      externalResources: [
+        {
+          type: "youtube",
+          title: "How to Create a Pitch Deck That VCs Will Love",
+          url: "https://www.youtube.com/watch?v=SB16xgtFmco",
+          thumbnail: "https://img.youtube.com/vi/SB16xgtFmco/hqdefault.jpg"
+        },
+        {
+          type: "blog",
+          title: "The Only 10 Slides You Need in Your Pitch Deck",
+          url: "https://guykawasaki.com/the-only-10-slides-you-need-in-your-pitch/",
+          source: "Guy Kawasaki"
+        }
       ]
     },
     {
@@ -75,6 +121,20 @@ export default function LearningPage() {
         "Valuation Methods for Early-stage Startups",
         "Cap Tables and Dilution",
         "Term Sheet Negotiation"
+      ],
+      externalResources: [
+        {
+          type: "youtube",
+          title: "Startup Valuation - How to Calculate Your Company's Worth",
+          url: "https://www.youtube.com/watch?v=BLehn1bDjbE",
+          thumbnail: "https://img.youtube.com/vi/BLehn1bDjbE/hqdefault.jpg"
+        },
+        {
+          type: "blog",
+          title: "How to Value a Startup Company With No Revenue",
+          url: "https://www.forbes.com/sites/alejandrocremades/2018/08/27/how-to-value-a-startup-company-with-no-revenue/",
+          source: "Forbes"
+        }
       ]
     },
     {
@@ -277,150 +337,193 @@ export default function LearningPage() {
 
   return (
     <DashboardShell userType="founder">
-      <div className="flex min-h-screen flex-col">
-        <SiteHeader />
-        <main className="flex-1 p-6 space-y-8">
-          <div className="container">
-            <h1 className="text-3xl font-bold mb-2">Learning Resources</h1>
-            <p className="text-muted-foreground mb-8">
-              Access curated content to help you build and scale your startup successfully
-            </p>
+      <div className="space-y-8">
+        <h1 className="text-3xl font-bold mb-2">Learning Resources</h1>
+        <p className="text-muted-foreground mb-8">
+          Access curated content to help you build and scale your startup successfully
+        </p>
 
-            {/* Search and Filter */}
-            <div className="flex flex-col md:flex-row gap-4 mb-8">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search resources..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Search and Filter */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search resources..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {categories.map(category => (
+              <Button
+                key={category.id}
+                variant={activeCategory === category.id ? "default" : "outline"}
+                onClick={() => setActiveCategory(category.id)}
+                className="whitespace-nowrap"
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Learning Progress Overview */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Your Learning Progress</CardTitle>
+            <CardDescription>Track your progress across all resources</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-4">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Available Courses</p>
+                  <p className="text-2xl font-bold">{learningResources.length}</p>
+                </div>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {categories.map(category => (
-                  <Button
-                    key={category.id}
-                    variant={activeCategory === category.id ? "default" : "outline"}
-                    onClick={() => setActiveCategory(category.id)}
-                    className="whitespace-nowrap"
-                  >
-                    {category.name}
-                  </Button>
-                ))}
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Total Hours</p>
+                  <p className="text-2xl font-bold">
+                    {learningResources.reduce((acc, curr) => acc + parseFloat(curr.duration.split(' ')[0]), 0)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <Target className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Categories</p>
+                  <p className="text-2xl font-bold">{categories.length - 1}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Completed</p>
+                  <p className="text-2xl font-bold">0</p>
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Learning Progress Overview */}
-            <Card className="mb-8">
+        {/* Resources Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredResources.map(resource => (
+            <Card key={resource.id} className="overflow-hidden flex flex-col">
+              <div className="aspect-video relative">
+                <img
+                  src={resource.image}
+                  alt={resource.title}
+                  className="object-cover w-full h-full"
+                />
+                {resource.progress > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-2">
+                    <SimpleProgress value={resource.progress} className="h-2" />
+                    <p className="text-xs text-white text-right mt-1">{resource.progress}% Complete</p>
+                  </div>
+                )}
+              </div>
               <CardHeader>
-                <CardTitle>Your Learning Progress</CardTitle>
-                <CardDescription>Track your progress across all resources</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 md:grid-cols-4">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <BookOpen className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Available Courses</p>
-                      <p className="text-2xl font-bold">{learningResources.length}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Total Hours</p>
-                      <p className="text-2xl font-bold">
-                        {learningResources.reduce((acc, curr) => acc + parseFloat(curr.duration.split(' ')[0]), 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <Target className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Categories</p>
-                      <p className="text-2xl font-bold">{categories.length - 1}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Completed</p>
-                      <p className="text-2xl font-bold">0</p>
-                    </div>
-                  </div>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-xl">{resource.title}</CardTitle>
+                  <Badge variant="outline" className={getLevelColor(resource.level)}>
+                    {resource.level}
+                  </Badge>
                 </div>
+                <CardDescription>{resource.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col">
+                <div className="space-y-4 flex-grow">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center">
+                      <PlayCircle className="h-4 w-4 mr-1" />
+                      {resource.type}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {resource.duration}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Course Content:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      {resource.modules.map((module, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-primary" />
+                          {module}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  {/* External Resources Section */}
+                  {resource.externalResources && resource.externalResources.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <p className="text-sm font-medium">Additional Resources:</p>
+                      <div className="space-y-3">
+                        {resource.externalResources.map((extResource, idx) => (
+                          <a 
+                            key={idx} 
+                            href={extResource.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-start gap-3 p-2 rounded-md hover:bg-muted transition-colors"
+                          >
+                            {extResource.type === "youtube" ? (
+                              <>
+                                <div className="flex-shrink-0 w-16 h-12 rounded overflow-hidden relative">
+                                  {extResource.thumbnail ? (
+                                    <img src={extResource.thumbnail} alt={extResource.title} className="object-cover w-full h-full" />
+                                  ) : (
+                                    <div className="bg-red-600 w-full h-full flex items-center justify-center">
+                                      <PlayCircle className="h-6 w-6 text-white" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium line-clamp-2">{extResource.title}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">YouTube</p>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex-shrink-0 w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+                                  <FileText className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium line-clamp-2">{extResource.title}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{extResource.source || "Blog"}</p>
+                                </div>
+                              </>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <Link href={resource.category === "pitch" ? "/dashboard/founder/learning/pitch" : "#"} className="w-full mt-4">
+                  <Button className="w-full">
+                    {resource.progress > 0 ? "Continue Learning" : "Start Learning"}
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
-
-            {/* Resources Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredResources.map(resource => (
-                <Card key={resource.id} className="overflow-hidden">
-                  <div className="aspect-video relative">
-                    <img
-                      src={resource.image}
-                      alt={resource.title}
-                      className="object-cover w-full h-full"
-                    />
-                    {resource.progress > 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-2">
-                        <Progress value={resource.progress} className="h-2" />
-                        <p className="text-xs text-white text-right mt-1">{resource.progress}% Complete</p>
-                      </div>
-                    )}
-                  </div>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-xl">{resource.title}</CardTitle>
-                      <Badge variant="outline" className={getLevelColor(resource.level)}>
-                        {resource.level}
-                      </Badge>
-                    </div>
-                    <CardDescription>{resource.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center">
-                          <PlayCircle className="h-4 w-4 mr-1" />
-                          {resource.type}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {resource.duration}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Course Content:</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {resource.modules.map((module, index) => (
-                            <li key={index} className="flex items-center gap-2">
-                              <div className="w-1 h-1 rounded-full bg-primary" />
-                              {module}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <Button className="w-full">
-                        {resource.progress > 0 ? "Continue Learning" : "Start Learning"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </main>
-        <SiteFooter />
+          ))}
+        </div>
       </div>
     </DashboardShell>
   );

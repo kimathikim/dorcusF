@@ -33,6 +33,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
+import { CustomProgress } from "@/components/ui/custom-progress"
 import {
   Search,
   Filter,
@@ -66,6 +68,12 @@ import {
   ExternalLink,
   Check,
 } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api-config";
+import { Label } from "@/components/ui/label";
+import { toast as Toast } from "@/hooks/use-toast";
+import { ToastAction } from "@radix-ui/react-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 // Mock data for development
 const mockDeals = [
@@ -118,6 +126,13 @@ const priorityBadges = {
   Rejected: { variant: "outline", icon: XCircle },
 }
 
+const statusBadges = {
+  "active": { variant: "default", icon: Clock, label: "Active" },
+  "paused": { variant: "secondary", icon: Clock, label: "Paused" },
+  "completed": { variant: "outline", icon: CheckCircle, label: "Completed" },
+  "cancelled": { variant: "outline", icon: XCircle, label: "Cancelled" },
+}
+
 export default function DealFlowPage() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
@@ -134,19 +149,137 @@ export default function DealFlowPage() {
   const [negotiationAmount, setNegotiationAmount] = useState("")
   const [showNegotiationModal, setShowNegotiationModal] = useState(false)
   const [negotiationDealId, setNegotiationDealId] = useState<string | null>(null)
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
+  // Add these state variables at the top of your component
+  const [showInvestmentModal, setShowInvestmentModal] = useState(false);
+  const [investmentAmount, setInvestmentAmount] = useState("");
+  const [investmentDealId, setInvestmentDealId] = useState<string | null>(null);
+
+  const deleteDeal = async (dealId: string) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        // Remove the deal from the state
+        setDeals((prevDeals) => prevDeals.filter((deal) => deal.id !== dealId));
+
+        // Close the detail view if the deleted deal was selected
+        if (selectedDealId === dealId) {
+          setSelectedDealId(null);
+        }
+
+        // Go back to the dealflow immediately
+        setSelectedDeal(null);
+
+        toast({
+          title: "Deal deleted",
+          description: "The deal has been removed from your pipeline.",
+          variant: "default",
+        });
+      } else {
+        console.error("Failed to delete deal:", response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to delete the deal. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting deal:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const [newMeetingTitle, setNewMeetingTitle] = useState("");
   const [newMeetingStartTime, setNewMeetingStartTime] = useState("");
   const [newMeetingEndTime, setNewMeetingEndTime] = useState("");
-  const [newMeetingGoogleMeetURL, setNewMeetingGoogleMeetURL] = useState("");
   const [newMeetingNotes, setNewMeetingNotes] = useState("");
+
+  // Uncomment and update the investment modal state and functions
+  const submitInvestment = async () => {
+    if (!investmentAmount || parseFloat(investmentAmount) <= 0) {
+      Toast({
+        title: "Invalid amount",
+        description: "Please enter a valid investment amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("authToken");
+      
+      const response = await fetch(`${API_BASE_URL}/dealflow/${investmentDealId}/invest`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ investmentAmount: parseFloat(investmentAmount) }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) =>
+            deal.id === investmentDealId
+              ? {
+                ...deal,
+                fundRequired: deal.fundRequired - parseFloat(investmentAmount),
+                lastActivity: new Date().toISOString(),
+              }
+              : deal
+          )
+        );
+        setShowInvestmentModal(false);
+        setInvestmentAmount("");
+
+        Toast({
+          title: "Investment successfully submitted.",
+          variant: "default",
+        });
+      } else {
+        console.error("Failed to submit investment:", data.error || response.statusText);
+        Toast({
+          title: "Failed to submit investment.",
+          description: data.error || "An error occurred",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting investment:", error);
+      Toast({
+        title: "Error",
+        description: "An error occurred while submitting investment.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openInvestmentModal = (e: React.MouseEvent, dealId: string) => {
+    e.stopPropagation(); // Prevent card click event
+    setInvestmentDealId(dealId);
+    setShowInvestmentModal(true);
+  };
 
   useEffect(() => {
     async function fetchDeals() {
       try {
         setLoading(true)
         const token = localStorage.getItem("authToken");
-        const response = await fetch("http://localhost:8080/api/v1/dealflow/", {
+        const response = await fetch(`${API_BASE_URL}/dealflow/`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -207,11 +340,11 @@ export default function DealFlowPage() {
   }, []);
 
   const scheduleMeeting = async (dealId: string) => {
-    if (!newMeetingTitle || !newMeetingStartTime || !newMeetingEndTime || !newMeetingGoogleMeetURL) return;
+    if (!newMeetingTitle || !newMeetingStartTime || !newMeetingEndTime) return;
 
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}/meetings`, {
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}/meetings`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -221,19 +354,18 @@ export default function DealFlowPage() {
           title: newMeetingTitle,
           start_time: new Date(newMeetingStartTime).toISOString(),
           end_time: new Date(newMeetingEndTime).toISOString(),
-          google_meet_url: newMeetingGoogleMeetURL,
           notes: newMeetingNotes,
         }),
       });
 
       if (response.ok) {
-        const newMeeting = await response.json();
+        const result = await response.json();
         setDeals((prevDeals) =>
           prevDeals.map((deal) =>
             deal.id === dealId
               ? {
                 ...deal,
-                meetings: [...deal.meetings, newMeeting],
+                meetings: [...deal.meetings, result.meeting],
                 lastActivity: new Date().toISOString(),
               }
               : deal
@@ -242,14 +374,24 @@ export default function DealFlowPage() {
         setNewMeetingTitle("");
         setNewMeetingStartTime("");
         setNewMeetingEndTime("");
-        setNewMeetingGoogleMeetURL("");
         setNewMeetingNotes("");
-        console.log("Meeting successfully scheduled.");
+        Toast({
+          title: "Meeting successfully scheduled.",
+          variant: "default",
+        });
       } else {
         console.error("Failed to schedule meeting:", response.statusText);
+        Toast({
+          title: "Failed to schedule meeting.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error scheduling meeting:", error);
+      Toast({
+        title: "An error occurred while scheduling the meeting.",
+        variant: "destructive",
+      });
     }
   };
   // Extract unique industries for filter
@@ -308,45 +450,71 @@ export default function DealFlowPage() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(0)}K`
-    }
-    return `$${amount}`
-  }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(amount);
+  };
 
-  // Format date
+  // Format date with error handling
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date)
+    if (!dateString) return "N/A";
+
+    try {
+      const date = new Date(dateString);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid date";
+    }
   }
 
-  // Format relative time
+  // Format relative time with error handling
   const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    if (!dateString) return "N/A";
 
-    if (diffInSeconds < 60) {
-      return "just now"
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60)
-      return `${minutes} minute${minutes > 1 ? "s" : ""} ago`
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600)
-      return `${hours} hour${hours > 1 ? "s" : ""} ago`
-    } else if (diffInSeconds < 604800) {
-      const days = Math.floor(diffInSeconds / 86400)
-      return `${days} day${days > 1 ? "s" : ""} ago`
-    } else {
-      return formatDate(dateString).split(",")[0] // Just return the date part
+    try {
+      const date = new Date(dateString);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      if (diffInSeconds < 60) {
+        return "just now";
+      } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+      } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+      } else if (diffInSeconds < 604800) {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days} day${days > 1 ? "s" : ""} ago`;
+      } else {
+        return formatDate(dateString).split(",")[0]; // Just return the date part
+      }
+    } catch (error) {
+      console.error("Relative time formatting error:", error);
+      return "Unknown";
     }
   }
 
@@ -383,56 +551,139 @@ export default function DealFlowPage() {
   }
 
   // Add a task to a deal
-  const addTask = (dealId: string) => {
-    if (!newTaskTitle.trim() || !newTaskDueDate) return
+  const addTask = async (dealId: string) => {
+    if (!newTaskTitle.trim() || !newTaskDueDate) return;
 
-    // In a real app, you would send this to your API
-    console.log(`Adding task to deal ${dealId}: ${newTaskTitle}, due ${newTaskDueDate}`)
-
-    // Update the UI optimistically
-    setDeals((prevDeals) =>
-      prevDeals.map((deal) =>
-        deal.id === dealId
-          ? {
-            ...deal,
-            tasks: [
-              ...deal.tasks,
-              {
-                id: `t${Date.now()}`,
-                title: newTaskTitle,
-                completed: false,
-                dueDate: new Date(newTaskDueDate).toISOString(),
-              },
-            ],
-            lastActivity: new Date().toISOString(),
-          }
-          : deal,
-      ),
-    )
-
-    setNewTaskTitle("")
-    setNewTaskDueDate("")
-  }
-
-  // Toggle task completion
-  const toggleTaskCompletion = (dealId: string, taskId: string) => {
-    setDeals((prevDeals) =>
-      prevDeals.map((deal) =>
-        deal.id === dealId
-          ? {
-            ...deal,
-            tasks: deal.tasks.map((task) => (task.id === taskId ? { ...task, completed: !task.completed } : task)),
-            lastActivity: new Date().toISOString(),
-          }
-          : deal,
-      ),
-    )
-  }
-  const updateDealStatus = async (dealId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}`, {
-        method: "PUT",
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}/tasks`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: newTaskTitle,
+          due_date: new Date(newTaskDueDate).toISOString(),
+          completed: false,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Update UI optimistically
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) =>
+            deal.id === dealId
+              ? {
+                ...deal,
+                tasks: [
+                  ...deal.tasks,
+                  {
+                    id: result.task?.id || `t${Date.now()}`,
+                    title: newTaskTitle,
+                    completed: false,
+                    dueDate: new Date(newTaskDueDate).toISOString(),
+                  },
+                ],
+                lastActivity: new Date().toISOString(),
+              }
+              : deal
+          )
+        );
+
+        setNewTaskTitle("");
+        setNewTaskDueDate("");
+        //setIsDialogOpen(false);
+
+        Toast({
+          title: "Task added successfully.",
+          variant: "default",
+        });
+      } else {
+        console.error("Failed to add task:", response.statusText);
+        Toast({
+          title: "Failed to add task.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding task:", error);
+      Toast({
+        title: "An error occurred while adding the task.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Toggle task completion
+  const toggleTaskCompletion = async (dealId: string, taskId: string, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}/tasks/${taskId}/status`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          completed: newStatus
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        // Update UI with the task from response
+        setDeals((prevDeals) =>
+          prevDeals.map((deal) => ({
+            ...deal,
+            tasks: deal.tasks.map((task) =>
+              task.id === taskId
+                ? { ...task, completed: newStatus }
+                : task
+            ),
+            lastActivity: new Date().toISOString(),
+          }))
+        );
+
+        Toast({
+          title: `Task marked as ${newStatus ? 'completed' : 'pending'}`,
+          variant: "default",
+        });
+      } else {
+        console.error("Failed to update task status:", response.statusText);
+        Toast({
+          title: "Failed to update task status",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating task status:", error);
+      Toast({
+        title: "Error updating task status",
+        variant: "destructive",
+      });
+    }
+  };
+  const updateDealStatus = async (dealId: string, newStatus: string) => {
+    try {
+      // Validate status against backend expectations
+      const validStatuses = ["active", "paused", "completed", "cancelled"];
+      if (!validStatuses.includes(newStatus)) {
+        console.error(`Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`);
+        Toast({
+          title: "Invalid status value",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const token = localStorage.getItem("authToken");
+      // Use the correct endpoint and HTTP method
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}/status`, {
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -446,12 +697,23 @@ export default function DealFlowPage() {
             deal.id === dealId ? { ...deal, status: newStatus, lastActivity: new Date().toISOString() } : deal
           )
         );
-        console.log(`Updated deal ${dealId} status to ${newStatus}`);
+        Toast({
+          title: `Deal status updated to ${newStatus}`,
+          variant: "default",
+        });
       } else {
         console.error("Failed to update status:", response.statusText);
+        Toast({
+          title: "Failed to update deal status",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error updating deal status:", error);
+      Toast({
+        title: "Error updating deal status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -465,7 +727,7 @@ export default function DealFlowPage() {
         setShowNegotiationModal(true);
       }
 
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}`, {
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -496,7 +758,7 @@ export default function DealFlowPage() {
     try {
       const token = localStorage.getItem("authToken");
 
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${negotiationDealId}/invest`, {
+      const response = await fetch(`${API_BASE_URL}dealflow/${negotiationDealId}/invest`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -532,13 +794,13 @@ export default function DealFlowPage() {
   const updateDealPriority = async (dealId: string, newPriority: string) => {
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${dealId}`, {
+      const response = await fetch(`${API_BASE_URL}/dealflow/${dealId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ priority: newPriority }),
+        body: JSON.stringify({ status: newPriority }),
       });
 
       if (response.ok) {
@@ -600,7 +862,7 @@ export default function DealFlowPage() {
 
   return (
 
-    <DashboardShell userType="investor">
+    <><DashboardShell userType="investor">
       <div className="flex min-h-screen flex-col">
         <main className="flex-1 container mx-auto py-10 px-4">
           {selectedDeal ? (
@@ -663,7 +925,8 @@ export default function DealFlowPage() {
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
-                  </DropdownMenu>                <Button variant="outline" size="sm">
+                  </DropdownMenu>
+                  <Button variant="outline" size="sm">
                     <Share2 className="h-4 w-4 mr-2" /> Share
                   </Button>
 
@@ -681,9 +944,31 @@ export default function DealFlowPage() {
                         <Download className="h-4 w-4 mr-2" /> Export Data
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete Deal
-                      </DropdownMenuItem>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete Deal
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently remove {selectedDeal.startupName} from your deal pipeline.
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteDeal(selectedDeal.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -718,7 +1003,7 @@ export default function DealFlowPage() {
 
                   {selectedDeal.status && (
                     <Badge
-                      variant={priorityBadges[selectedDeal.status as keyof typeof priorityBadges]?.variant || "default"}
+                      variant={(priorityBadges[selectedDeal.status as keyof typeof priorityBadges]?.variant as "destructive" | "default" | "secondary" | "outline") || "default"}
                       className="ml-auto"
                     >
                       {priorityBadges[selectedDeal.status as keyof typeof priorityBadges]?.icon && (
@@ -753,6 +1038,7 @@ export default function DealFlowPage() {
                       <CardContent>
                         <div className="flex items-center gap-3 mb-3">
                           <Avatar className="h-10 w-10">
+                            <AvatarImage src={selectedDeal.avatar} alt={selectedDeal.founder} />
                             <AvatarFallback>{selectedDeal.founder.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
@@ -760,7 +1046,31 @@ export default function DealFlowPage() {
                             <p className="text-sm text-muted-foreground">{selectedDeal.founderEmail}</p>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            // Get user data from localStorage
+                            const storedUserData = localStorage.getItem("userData");
+                            let userName = "";
+
+                            if (storedUserData) {
+                              try {
+                                const parsedUserData = JSON.parse(storedUserData);
+                                userName = parsedUserData.firstName && parsedUserData.lastName
+                                  ? `${parsedUserData.firstName} ${parsedUserData.lastName}`
+                                  : parsedUserData.name || "";
+                              } catch (error) {
+                                console.error("Error parsing user data:", error);
+                              }
+                            }
+
+                            const subject = `Regarding your startup: ${selectedDeal.startupName}`;
+                            const body = `Hello ${selectedDeal.founder},\n\nI'm writing regarding our ongoing discussions about ${selectedDeal.startupName}. The current status of our deal is "${selectedDeal.status}" and we're in the "${pipelineStages.find(s => s.id === selectedDeal.stage)?.name}" stage.\n\nLet's discuss next steps.\n\nRegards,\n${userName}`;
+                            window.location.href = `mailto:${selectedDeal.founderEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                          }}
+                        >
                           <Mail className="h-4 w-4 mr-2" /> Contact Founder
                         </Button>
                       </CardContent>
@@ -776,7 +1086,7 @@ export default function DealFlowPage() {
                       <CardContent>
                         <div className="text-3xl font-bold mb-1">{formatCurrency(selectedDeal.fundRequired)}</div>
                         <p className="text-sm text-muted-foreground mb-3">{selectedDeal.fundingStage} Round</p>
-                        <Progress value={selectedDeal.matchScore} className="h-2 mb-2" />
+                        <CustomProgress value={selectedDeal.matchScore} className="h-2 mb-2" />
                         <p className="text-xs text-muted-foreground">Match score: {selectedDeal.matchScore}%</p>
                       </CardContent>
                     </Card>
@@ -833,7 +1143,15 @@ export default function DealFlowPage() {
                           <h3 className="font-medium mb-2">Next Steps</h3>
                           {selectedDeal.stage === "negotiation" && (
                             <div className="mb-4">
-                              <Button variant="outline" onClick={() => setShowNegotiationModal(true)}>
+                              <Button 
+                                variant="outline" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setInvestmentDealId(selectedDeal.id);
+                                  setShowInvestmentModal(true);
+                                }}
+                              >
                                 <DollarSign className="h-4 w-4 mr-2" /> Invest in Company
                               </Button>
                             </div>
@@ -853,8 +1171,7 @@ export default function DealFlowPage() {
                                       <p className="text-xs text-muted-foreground">Due: {formatDate(task.dueDate)}</p>
                                     </div>
                                   </div>
-                                ))
-                              }
+                                ))}
                               {selectedDeal.tasks.filter(task => !task.completed).length > 3 && (
                                 <Button variant="link" size="sm" className="px-0">
                                   View all tasks ({selectedDeal.tasks.filter(task => !task.completed).length})
@@ -894,8 +1211,7 @@ export default function DealFlowPage() {
                                 id="task-title"
                                 placeholder="What needs to be done?"
                                 value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                              />
+                                onChange={(e) => setNewTaskTitle(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="due-date">Due Date</Label>
@@ -903,8 +1219,7 @@ export default function DealFlowPage() {
                                 id="due-date"
                                 type="datetime-local"
                                 value={newTaskDueDate}
-                                onChange={(e) => setNewTaskDueDate(e.target.value)}
-                              />
+                                onChange={(e) => setNewTaskDueDate(e.target.value)} />
                             </div>
                           </div>
                           <DialogFooter>
@@ -925,8 +1240,7 @@ export default function DealFlowPage() {
                                   <div key={task.id} className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md">
                                     <Checkbox
                                       checked={task.completed}
-                                      onCheckedChange={() => toggleTaskCompletion(selectedDeal.id, task.id)}
-                                    />
+                                      onCheckedChange={(checked: boolean) => toggleTaskCompletion(selectedDeal.id, task.id, checked)} />
                                     <div className="flex-1">
                                       <p className="text-sm">{task.title}</p>
                                       <p className="text-xs text-muted-foreground">Due: {formatDate(task.dueDate)}</p>
@@ -962,8 +1276,7 @@ export default function DealFlowPage() {
                                   <div key={task.id} className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md">
                                     <Checkbox
                                       checked={task.completed}
-                                      onCheckedChange={() => toggleTaskCompletion(selectedDeal.id, task.id)}
-                                    />
+                                      onCheckedChange={() => toggleTaskCompletion(selectedDeal.id, task.id, false)} />
                                     <div className="flex-1">
                                       <p className="text-sm line-through text-muted-foreground">{task.title}</p>
                                       <p className="text-xs text-muted-foreground">Completed</p>
@@ -981,8 +1294,7 @@ export default function DealFlowPage() {
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   </div>
-                                ))
-                              }
+                                ))}
                             </div>
                           )}
                         </div>
@@ -1011,8 +1323,7 @@ export default function DealFlowPage() {
                                     id="task-title-empty"
                                     placeholder="What needs to be done?"
                                     value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                  />
+                                    onChange={(e) => setNewTaskTitle(e.target.value)} />
                                 </div>
                                 <div className="grid gap-2">
                                   <Label htmlFor="due-date-empty">Due Date</Label>
@@ -1020,8 +1331,7 @@ export default function DealFlowPage() {
                                     id="due-date-empty"
                                     type="datetime-local"
                                     value={newTaskDueDate}
-                                    onChange={(e) => setNewTaskDueDate(e.target.value)}
-                                  />
+                                    onChange={(e) => setNewTaskDueDate(e.target.value)} />
                                 </div>
                               </div>
                               <DialogFooter>
@@ -1060,8 +1370,7 @@ export default function DealFlowPage() {
                                 id="meeting-title"
                                 placeholder="Meeting Title"
                                 value={newMeetingTitle}
-                                onChange={(e) => setNewMeetingTitle(e.target.value)}
-                              />
+                                onChange={(e) => setNewMeetingTitle(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="start-time">Start Time</Label>
@@ -1069,8 +1378,7 @@ export default function DealFlowPage() {
                                 id="start-time"
                                 type="datetime-local"
                                 value={newMeetingStartTime}
-                                onChange={(e) => setNewMeetingStartTime(e.target.value)}
-                              />
+                                onChange={(e) => setNewMeetingStartTime(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="end-time">End Time</Label>
@@ -1078,17 +1386,7 @@ export default function DealFlowPage() {
                                 id="end-time"
                                 type="datetime-local"
                                 value={newMeetingEndTime}
-                                onChange={(e) => setNewMeetingEndTime(e.target.value)}
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="google-meet-url">Google Meet URL</Label>
-                              <Input
-                                id="google-meet-url"
-                                placeholder="Google Meet URL"
-                                value={newMeetingGoogleMeetURL}
-                                onChange={(e) => setNewMeetingGoogleMeetURL(e.target.value)}
-                              />
+                                onChange={(e) => setNewMeetingEndTime(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="meeting-notes">Notes</Label>
@@ -1096,12 +1394,24 @@ export default function DealFlowPage() {
                                 id="meeting-notes"
                                 placeholder="Additional Notes"
                                 value={newMeetingNotes}
-                                onChange={(e) => setNewMeetingNotes(e.target.value)}
-                              />
+                                onChange={(e) => setNewMeetingNotes(e.target.value)} />
                             </div>
                           </div>
                           <DialogFooter>
-                            <Button onClick={() => scheduleMeeting(selectedDeal.id)}>Schedule Meeting</Button>
+                            <Button
+                              onClick={() => {
+                                scheduleMeeting(selectedDeal.id);
+                                // Only close the dialog if all required fields are filled
+                                if (newMeetingTitle && newMeetingStartTime && newMeetingEndTime) {
+                                  // Close the dialog - you might need to add state for this
+                                  console.log("open")
+                                  // setIsDialogOpen(false);
+                                }
+                              }}
+                              disabled={!newMeetingTitle || !newMeetingStartTime || !newMeetingEndTime}
+                            >
+                              Schedule Meeting
+                            </Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
@@ -1235,8 +1545,7 @@ export default function DealFlowPage() {
                           placeholder="Add a note about this deal..."
                           className="min-h-[100px]"
                           value={newNote}
-                          onChange={(e) => setNewNote(e.target.value)}
-                        />
+                          onChange={(e) => setNewNote(e.target.value)} />
                         <Button onClick={() => addNote(selectedDeal.id)}>
                           <MessageSquare className="h-4 w-4 mr-2" /> Add Note
                         </Button>
@@ -1345,8 +1654,7 @@ export default function DealFlowPage() {
                       placeholder="Search deals by startup name, industry, or founder..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
+                      className="pl-10" />
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -1459,7 +1767,7 @@ export default function DealFlowPage() {
                               {deal.status && (
                                 <div className="mt-2 pt-2 border-t">
                                   <Badge
-                                    variant={priorityBadges[deal.status as keyof typeof priorityBadges]?.variant || "default"}
+                                    variant={(priorityBadges[deal.status as keyof typeof priorityBadges]?.variant as "destructive" | "default" | "secondary" | "outline") || "default"}
                                     className="w-full justify-center"
                                   >
                                     {priorityBadges[deal.status as keyof typeof priorityBadges]?.icon && (
@@ -1484,8 +1792,6 @@ export default function DealFlowPage() {
                 </div>
               ) : (
                 // List View
-
-
                 <div className="space-y-3">
                   {filteredDeals.map(deal => (
                     <Card
@@ -1540,7 +1846,7 @@ export default function DealFlowPage() {
 
                             {deal.status && (
                               <Badge
-                                variant={priorityBadges[deal.status as keyof typeof priorityBadges]?.variant || "default"}
+                                variant={(priorityBadges[deal.status as keyof typeof priorityBadges]?.variant as "destructive" | "default" | "secondary" | "outline") || "default"}
                               >
                                 {priorityBadges[deal.status as keyof typeof priorityBadges]?.icon && (
                                   React.createElement(priorityBadges[deal.status as keyof typeof priorityBadges].icon, { className: "h-3 w-3 mr-1" })
@@ -1562,106 +1868,7 @@ export default function DealFlowPage() {
           )}
         </main>
       </div>
-    </DashboardShell>
-    //
-    // <Dialog open={showNegotiationModal} onOpenChange={setShowNegotiationModal}>
-    //   <DialogContent className="sm:max-w-[425px]">
-    //     <DialogHeader>
-    //       <DialogTitle>Investment Negotiation</DialogTitle>
-    //       <DialogDescription>Enter the amount you're ready to invest in this startup.</DialogDescription>
-    //     </DialogHeader>
-    //     <div className="grid gap-4 py-4">
-    //       <div className="grid gap-2">
-    //         <Label htmlFor="investment-amount">Investment Amount</Label>
-    //         <Input
-    //           id="investment-amount"
-    //           type="number"
-    //           placeholder="Enter amount"
-    //           value={negotiationAmount}
-    //           onChange={(e) => setNegotiationAmount(e.target.value)}
-    //         />
-    //       </div>
-    //     </div>
-    //     <DialogFooter>
-    //       <Button onClick={submitNegotiationInvestment}>Submit Investment</Button>
-    //     </DialogFooter>
-    //   </DialogContent>
-    // </Dialog>
-  );
-}
-
-
-// Missing Label component
-function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-    >
-      {children}
-    </label>
-  )
-}
-
-  // Missing Checkbox component
-  function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
-    return (
-      <div
-        className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}
-        onClick={onCheckedChange}
-      >
-        {checked && <Check className="h-3 w-3 text-primary-foreground" />}
-      </div>
-    )
-  }
-
-  // Investment Modal
-  const [showInvestmentModal, setShowInvestmentModal] = useState(false);
-  const [investmentAmount, setInvestmentAmount] = useState("");
-  const [investmentDealId, setInvestmentDealId] = useState<string | null>(null);
-
-  const submitInvestment = async () => {
-    if (!investmentDealId || !investmentAmount) return;
-
-    try {
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(`http://localhost:8080/api/v1/dealflow/${investmentDealId}/invest`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ investmentAmount: parseFloat(investmentAmount) }),
-
-
-      if (response.ok) {
-        // Update UI after successful investment
-        const updatedDeal = await response.json();
-        setDeals((prevDeals) =>
-          prevDeals.map((deal) => (deal.id === investmentDealId ? updatedDeal : deal))
-        );
-        setShowInvestmentModal(false);
-        setInvestmentAmount("");
-        console.log("Investment successfully submitted.");
-      } else {
-        console.error("Failed to submit investment:", response.statusText);
-      }
-    } catch (error) {
-      console.error("Error submitting investment:", error);
-    }
-  };
-
-  const openInvestmentModal = (dealId: string) => {
-    setInvestmentDealId(dealId);
-    setShowInvestmentModal(true);
-  };
-
-  return (
-    <DashboardShell userType="investor">
-      {/* ... existing code ... */}
-
-      {/* Investment Modal */}
-      <Dialog open={showInvestmentModal} onOpenChange={setShowInvestmentModal}>
+    </DashboardShell><Dialog open={showInvestmentModal} onOpenChange={setShowInvestmentModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Investment Quotation</DialogTitle>
@@ -1683,35 +1890,134 @@ function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
             <Button onClick={submitInvestment}>Submit Investment</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-
-      {/* ... existing code ... */}
-
-      {/* Add openInvestmentModal call in the appropriate place, for example: */}
-      {filteredDeals.map(deal => (
-        <Card
-          key={deal.id}
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => setSelectedDeal(deal)}
-        >
-          {/* ... existing code ... */}
-          <Button onClick={() => openInvestmentModal(deal.id)}>Invest</Button> {/* Add this button */}
-          {/* ... existing code ... */}
-        </Card>
-      ))}
-
-      {/* ... rest of the code ... */}
-    </DashboardShell>
+      </Dialog></>
   );
 }
-  return (
-    <div
-      className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}
-      onClick={onCheckedChange}
-    >
-      {checked && <Check className="h-3 w-3 text-primary-foreground" />}
-    </div>
-  )
-}
+
+
+// // Missing Label component
+// function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+//   return (
+//     <label
+//       htmlFor={htmlFor}
+//       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+//     >
+//       {children}
+//     </label>
+//   )
+// }
+
+//   // Missing Checkbox component
+//   function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
+//     return (
+//       <div
+//         className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}
+//         onClick={onCheckedChange}
+//       >
+//         {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+//       </div>
+//     )
+//   }
+
+//   // Investment Modal
+//   const [showInvestmentModal, setShowInvestmentModal] = useState(false);
+//   const [investmentAmount, setInvestmentAmount] = useState("");
+//   const [investmentDealId, setInvestmentDealId] = useState<string | null>(null);
+
+//   const submitInvestment = async () => {
+//     if (!investmentDealId || !investmentAmount) return;
+
+//     try {
+//       const token = localStorage.getItem("authToken");
+//       const response = await fetch(`${API_BASE_URL}/dealflow/${investmentDealId}/invest`, {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ investmentAmount: parseFloat(investmentAmount) }),
+//       });
+
+//       if (response.ok) {
+//         const updatedDeal = await response.json();
+//         setDeals((prevDeals) =>
+//           prevDeals.map((deal: Deal) => (deal.id === investmentDealId ? updatedDeal : deal))
+//         );
+//         setShowInvestmentModal(false);
+//         setInvestmentAmount("");
+//         console.log("Investment successfully submitted.");
+//       } else {
+//         console.error("Failed to submit investment:", response.statusText);
+//       }
+//     } catch (error) {
+//       console.error("Error submitting investment:", error);
+//     }
+//   };
+
+//   const openInvestmentModal = (dealId: string) => {
+//     setInvestmentDealId(dealId);
+//     setShowInvestmentModal(true);
+//   };
+
+//   return (
+//     <DashboardShell userType="investor">
+//       {/* ... existing code ... */}
+
+//       {/* Investment Modal */}
+//       <Dialog open={showInvestmentModal} onOpenChange={setShowInvestmentModal}>
+//         <DialogContent className="sm:max-w-[425px]">
+//           <DialogHeader>
+//             <DialogTitle>Investment Quotation</DialogTitle>
+//             <DialogDescription>Enter your investment amount.</DialogDescription>
+//           </DialogHeader>
+//           <div className="grid gap-4 py-4">
+//             <div className="grid gap-2">
+//               <Label htmlFor="investment-amount">Investment Amount</Label>
+//               <Input
+//                 id="investment-amount"
+//                 type="number"
+//                 placeholder="Enter amount"
+//                 value={investmentAmount}
+//                 onChange={(e) => setInvestmentAmount(e.target.value)}
+//               />
+//             </div>
+//           </div>
+//           <DialogFooter>
+//             <Button onClick={submitInvestment}>Submit Investment</Button>
+//           </DialogFooter>
+//         </DialogContent>
+//       </Dialog>
+
+//       {/* ... existing code ... */}
+
+//       {/* Add openInvestmentModal call in the appropriate place, for example: */}
+//       {filteredDeals.map(deal => (
+//         <Card
+//           key={deal.id}
+//           className="cursor-pointer hover:shadow-md transition-shadow"
+//           onClick={() => setSelectedDeal(deal)}
+//         >
+//           {/* ... existing code ... */}
+//           <Button onClick={() => openInvestmentModal(deal.id)}>Invest</Button> {/* Add this button */}
+//           {/* ... existing code ... */}
+//         </Card>
+//       ))}
+
+//       {/* ... rest of the code ... */}
+//     </DashboardShell>
+//   );
+// }
+//   return (
+//     <div
+//       className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer ${checked ? "bg-primary border-primary" : "border-input"}`}
+//       onClick={onCheckedChange}
+//     >
+//       {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+//     </div>
+//   )
+// }
+// function setDeals(arg0: (prevDeals: any) => any) {
+//   throw new Error("Function not implemented.");
+// }
 
 

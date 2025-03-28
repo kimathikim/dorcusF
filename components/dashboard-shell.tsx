@@ -1,9 +1,10 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api-config";
 
 import { type ReactNode, useState, useEffect } from "react"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -19,12 +20,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { toast, useToast } from "@/hooks/use-toast"
 import {
   Bell,
   BookOpen,
-  EditIcon, TrashIcon,
-  Building2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   CircleDollarSign,
   Compass,
@@ -44,6 +45,9 @@ import {
   Lightbulb,
   Rocket,
   Zap,
+  Building2,
+  EditIcon,
+  TrashIcon,
 } from "lucide-react"
 
 interface DashboardShellProps {
@@ -59,25 +63,154 @@ interface NavItem {
   subItems?: { href: string; label: string; badge?: string }[]
 }
 
-export default function DashboardShell({ children, userType = "founder" }: DashboardShellProps) {
+export default function DashboardShell({ children, userType = "founder" }: DashboardShellProps): ReactNode {
   const pathname = usePathname()
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const router = useRouter()
+  const { toast } = useToast()
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false)
 
   const [userData, setUserData] = useState({
-    name: userType === "founder" ? "Sarah Johnson" : "Alex Morgan",
-    email: userType === "founder" ? "sarah@innovatech.co" : "alex@venturecap.com",
-    role: userType === "founder" ? "Founder & CEO" : "Investment Partner",
-    company: userType === "founder" ? "InnovaTech Solutions" : "Venture Capital Partners",
+    name: "",
+    email: "",
+    role: "",
+    company: "",
     avatar: "/placeholder.svg?height=32&width=32",
-  });
+  })
 
   useEffect(() => {
-    handleUserData();
+    // Check if user is authenticated
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      console.log("No auth token found, redirecting to login");
+      toast({
+        title: "Session expired",
+        description: "Please log in again to continue",
+        variant: "destructive",
+      });
+      router.push("/login");
+      return;
+    }
+    
+    // Load user data directly without token verification
+    const storedUserData = localStorage.getItem("userData");
+    if (storedUserData) {
+      try {
+        const userData = JSON.parse(storedUserData);
+        // Use the user data directly
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        localStorage.removeItem("userData");
+        router.push("/login");
+      }
+    }
+    
     fetchNotifications();
-  }, []);
+  }, [router, toast]);
+
+  const fetchRoleSpecificData = async (role: string) => {
+    if (!role) return
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/${role}/profile`, {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserData(prev => ({
+          ...prev,
+          company: data.company || data.startupName || data.firmName || data.organizationName || "",
+          // Update avatar if available
+          avatar: data.avatar || data.profileImage || prev.avatar,
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching role-specific data:', error)
+    }
+  }
+
+  const fetchNotifications = async () => {
+    try {
+      const authToken = localStorage.getItem("authToken")
+      if (!authToken) return
+      
+      const response = await fetch(`${API_BASE_URL}/${userType}/notifications`, {
+        headers: {
+          "Authorization": `Bearer ${authToken}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Handle potential null data
+        setNotifications(data?.notifications || data || [])
+      } else {
+        throw new Error("Failed to fetch notifications")
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+      // Set empty array on error to prevent UI issues
+      setNotifications([])
+    }
+  }
+
+  const handleUpdateNotification = async (id: string, updatedData: { message: string }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${userType}/notifications/${id}`, {
+        method: 'PUT',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update notification");
+      }
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error updating notification:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${userType}/notification/${id}`, {
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete notification");
+      }
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    // Clear all auth-related data from localStorage
+    localStorage.removeItem("authToken")
+    localStorage.removeItem("userData")
+    localStorage.removeItem("currentRole")
+    
+    // Redirect to login page
+    router.push("/login")
+    
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out",
+    })
+  }
+
   // Define navigation items based on user type
   const founderNavItems: NavItem[] = [
     {
@@ -90,12 +223,12 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
       label: "Startup Profile",
       icon: <Building2 className="h-5 w-5" />,
     },
-    {
-      href: "/dashboard/founder/discovery",
-      label: "Investor Discovery",
-      icon: <Compass className="h-5 w-5" />,
-      badge: "New",
-    },
+    // {
+    //   href: "/dashboard/founder/discovery",
+    //   label: "Investor Discovery",
+    //   icon: <Compass className="h-5 w-5" />,
+    //   badge: "New",
+    // },
     {
       href: "/dashboard/founder/grants",
       label: "Fundraising",
@@ -273,14 +406,14 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
     ))
   }
 
-  const handleLogout = () => {
+  // const handleLogout = () => {
 
-    console.log("Logging out")
-    localStorage.removeItem("userType")
+  //   console.log("Logging out")
+  //   localStorage.removeItem("userType")
 
-    window.location.href = "/login"
-  }
-  // User data
+  //   window.location.href = "/login"
+  // }
+  // // User data
 
   const handleUserData = async () => {
     try {
@@ -303,63 +436,96 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
     }
   };
 
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notifications`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch notifications");
-      }
-      const data = await response.json();
-      console.log(data);
-      setNotifications(data);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+  function getPageTitle(pathname: string): ReactNode {
+    // Dashboard home pages
+    if (pathname === "/dashboard/founder") return "Founder Dashboard"
+    if (pathname === "/dashboard/investor") return "Investor Dashboard"
+    
+    // Founder specific pages
+    if (pathname.includes("/dashboard/founder/profile")) return "Founder Profile"
+    if (pathname.includes("/dashboard/founder/startup")) return "Startup Details"
+    if (pathname.includes("/dashboard/founder/pitch")) return "Pitch Deck"
+    if (pathname.includes("/dashboard/founder/funding")) return "Funding"
+    if (pathname.includes("/dashboard/founder/investors")) return "Investor Discovery"
+    
+    // Investor specific pages
+    if (pathname.includes("/dashboard/investor/profile")) return "Investor Profile"
+    if (pathname.includes("/dashboard/investor/startups")) return "Startup Discovery"
+    if (pathname.includes("/dashboard/investor/deals")) return "Deal Flow"
+    
+    // Common pages
+    if (pathname.includes("/settings")) return "Settings"
+    if (pathname.includes("/messages")) return "Messages"
+    
+    // Default fallback - extract the last part of the path
+    const pathParts = pathname.split("/").filter(Boolean)
+    if (pathParts.length > 0) {
+      const lastPart = pathParts[pathParts.length - 1]
+      return lastPart.charAt(0).toUpperCase() + lastPart.slice(1)
     }
-  };
+    
+    return "Dashboard"
+  }
 
-  const handleUpdateNotification = async (id, updatedData) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notifications/${id}`, {
-        method: 'PUT',
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-        },
-        body: JSON.stringify(updatedData),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to update notification");
-      }
-      fetchNotifications();
-    } catch (error) {
-      console.error('Error updating notification:', error);
-    }
-  };
+  // const fetchNotifications = async () => {
+  //   try {
+  //     const response = await fetch(`/${userType}/notifications`, {
+  //       headers: {
+  //         "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+  //       },
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch notifications");
+  //     }
+  //     const data = await response.json();
+  //     console.log(data);
+  //     setNotifications(data);
+  //   } catch (error) {
+  //     console.error('Error fetching notifications:', error);
+  //   }
+  // };
 
-  const handleDeleteNotification = async (id) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/${userType}/notification/${id}`, {
-        method: 'DELETE',
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      });
-      console.log(response);
-      if (!response.ok) {
-        throw new Error("Failed to delete notification");
-      }
-      fetchNotifications();
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-    }
-  }; return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+  // const handleUpdateNotification = async (id: string, updatedData: { message: string }) => {
+  //   try {
+  //     const response = await fetch(`/${userType}/notifications/${id}`, {
+  //       method: 'PUT',
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+  //       },
+  //       body: JSON.stringify(updatedData),
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error("Failed to update notification");
+  //     }
+  //     fetchNotifications();
+  //   } catch (error) {
+  //     console.error('Error updating notification:', error);
+  //   }
+  // };
+
+  // const handleDeleteNotification = async (id: string) => {
+  //   try {
+  //     const response = await fetch(`/${userType}/notification/${id}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
+  //       },
+  //     });
+  //     console.log(response);
+  //     if (!response.ok) {
+  //       throw new Error("Failed to delete notification");
+  //     }
+  //     fetchNotifications();
+  //   } catch (error) {
+  //     console.error('Error deleting notification:', error);
+  //   }
+  // };
+  // 
+   return (
+    <div className="flex min-h-screen flex-col">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b bg-background">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
@@ -390,7 +556,7 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
               </SheetContent>
             </Sheet>
 
-            <Link href="/dashboard/investor" className="flex items-center gap-2">
+            <Link href={userType === "founder" ? "/dashboard/founder" : "/dashboard/investor"} className="flex items-center gap-2">
               <div className="hidden md:flex items-center rounded-md bg-primary/10 p-1">
                 {userType === "founder" ? (
                   <Rocket className="h-6 w-6 text-primary" />
@@ -525,34 +691,130 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
 
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-64 border-r bg-background">
+        <aside className={cn(
+          "hidden md:flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
+          isNavCollapsed ? "w-[70px]" : "w-64"
+        )}>
           <div className="h-full py-6 pl-4 pr-2">
-            <ScrollArea className="h-[calc(100vh-10rem)]">
-              <div className="pr-2 pl-2">{renderNavItems(navItems)}</div>
-            </ScrollArea>
-
-            {/* Bottom sidebar items */}
-            {/* <div className="absolute bottom-0 left-0 right-0 border-t p-4"> */}
-            {/*   <div className="space-y-2"> */}
-            {/*     <Link href="/settings"> */}
-            {/*       <Button variant="ghost" className="w-full justify-start"> */}
-            {/*         <Settings className="mr-3 h-5 w-5 text-muted-foreground" /> */}
-            {/*         Settings */}
-            {/*       </Button> */}
-            {/*     </Link> */}
-            {/*     <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive"> */}
-            {/*       <LogOut className="mr-3 h-5 w-5" /> */}
-            {/*       Log out */}
-            {/*     </Button> */}
-            {/*   </div> */}
-            {/* </div> */}
+            <div className="flex items-center justify-between mb-6 px-2">
+              <div className="flex items-center">
+                <div className={cn("rounded-md bg-primary/10 p-1", isNavCollapsed ? "mx-auto" : "mr-2")}>
+                  {userType === "founder" ? (
+                    <Rocket className="h-6 w-6 text-primary" />
+                  ) : (
+                    <CircleDollarSign className="h-6 w-6 text-primary" />
+                  )}
+                </div>
+                {!isNavCollapsed && (
+                  <h2 className="text-lg font-semibold">
+                    {userType === "founder" ? "Founder Portal" : "Investor Platform"}
+                  </h2>
+                )}
+              </div>
+              {!isNavCollapsed && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsNavCollapsed(true)}
+                  className="ml-auto"
+                  title="Collapse sidebar"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {isNavCollapsed ? (
+              <div className="flex flex-col items-center space-y-4 mt-4">
+                {navItems.map((item) => (
+                  <TooltipProvider key={item.href}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link href={item.href}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "w-10 h-10 rounded-md",
+                              isActive(item.href) && "bg-primary/10 text-primary"
+                            )}
+                          >
+                            <span className={cn(isActive(item.href) ? "text-primary" : "text-muted-foreground")}>
+                              {item.icon}
+                            </span>
+                            {item.badge && (
+                              <Badge variant="default" className="absolute -top-1 -right-1 px-1 py-0 h-4 w-4 text-[10px]">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </Button>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+                
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setIsNavCollapsed(false)}
+                        className="mt-4"
+                        title="Expand sidebar"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      Expand sidebar
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            ) : (
+              <ScrollArea className="h-[calc(100vh-10rem)]">
+                <div className="pr-2">{renderNavItems(navItems)}</div>
+              </ScrollArea>
+            )}
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
-          <div className="container max-w-7xl mx-auto p-4 md:p-6 lg:p-8">{children}</div>
-        </main>
+        <div className="flex-1 w-full">
+          {/* Header */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
+            <div className="flex flex-1 items-center justify-between">
+              <div className="flex items-center gap-2">
+                {/* Mobile menu trigger */}
+                <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+                  <SheetTrigger asChild className="md:hidden">
+                    <Button variant="ghost" size="icon" className="mr-2">
+                      <Menu className="h-5 w-5" />
+                      <span className="sr-only">Toggle menu</span>
+                    </Button>
+                  </SheetTrigger>
+                </Sheet>
+                
+                {/* Page title */}
+                <h1 className="text-xl font-semibold">
+                  {getPageTitle(pathname)}
+                </h1>
+              </div>
+              
+              {/* Rest of the header content */}
+            </div>
+          </header>
+          
+          {/* Page content */}
+          <main className="flex-1 p-6">
+            {children}
+          </main>
+        </div>
       </div>
 
       {/* Custom Footer for Founders/Investors */}
@@ -697,6 +959,84 @@ export default function DashboardShell({ children, userType = "founder" }: Dashb
         </div>
       </footer>
     </div>
-  )
+   )    
 }
+
+// Add a function to fetch user data if not in localStorage
+const fetchUserData = async (token: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      
+      // Store user data in localStorage
+      localStorage.setItem("userData", JSON.stringify(data.user))
+      
+      // If user has roles, set the current role
+      if (data.user.roles && data.user.roles.length > 0) {
+        const role = data.user.roles[0]
+        localStorage.setItem("currentRole", role)
+        
+        // Use the fetchRoleSpecificData from the component scope
+        // This will be handled by the component's useEffect
+        window.dispatchEvent(new CustomEvent('roleUpdated', { detail: role }))
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user data:', error)
+    toast({
+      title: "Error",
+      description: "Failed to load user data",
+      variant: "destructive",
+    })
+  }
+}
+
+const getUserRole = () => {
+  // First check if a current role is already set
+  const currentRole = localStorage.getItem("currentRole");
+  if (currentRole) return currentRole;
+  
+  // If no current role, check userData for roles
+  const storedUserData = localStorage.getItem("userData");
+  if (!storedUserData) return null;
+  
+  try {
+    const parsedUserData = JSON.parse(storedUserData);
+    // Check for both "roles" and "role" fields since the structure varies
+    const userRoles = parsedUserData.roles || parsedUserData.role || [];
+    
+    if (userRoles.length === 0) return null;
+    
+    // If only one role, set it as current and return
+    if (userRoles.length === 1) {
+      const role = userRoles[0];
+      localStorage.setItem("currentRole", role);
+      return role;
+    }
+    
+    // If multiple roles, prompt user to select one
+    const selectedRole = window.prompt(
+      `You have multiple roles: ${userRoles.join(", ")}. Please enter the role you want to use:`
+    );
+    
+    if (selectedRole && userRoles.includes(selectedRole)) {
+      localStorage.setItem("currentRole", selectedRole);
+      return selectedRole;
+    } else {
+      // If invalid selection or canceled, default to first role
+      const defaultRole = userRoles[0];
+      localStorage.setItem("currentRole", defaultRole);
+      return defaultRole;
+    }
+  } catch (error) {
+    console.error("Error parsing user data:", error);
+    return null;
+  }
+};
 

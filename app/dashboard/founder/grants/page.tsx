@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import DashboardShell from "@/components/dashboard-shell";
 import {
   Briefcase,
   FileText,
@@ -47,12 +48,25 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface Grant {
+  id: number;
+  title: string;
+  organization: string;
+  amount: string;
+  dateposted: string;
+  category: string;
+  region: string;
+  description: string;
+  url: string;
+  eligibility: string;
+}
+
 const Grants = () => {
-  const [grants, setGrants] = useState([]);
+  const [grants, setGrants] = useState<Grant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedGrant, setSelectedGrant] = useState(null);
+  const [selectedGrant, setSelectedGrant] = useState<Grant | null>(null);
   const [activeTab, setActiveTab] = useState("discover");
   const [formData, setFormData] = useState({
     startupName: "",
@@ -62,7 +76,7 @@ const Grants = () => {
     website: "",
     teamSize: "",
     previousFunding: "",
-    pitchDeck: null,
+    pitchDeck: null as File | null,
   });
 
   // Example categories
@@ -77,40 +91,58 @@ const Grants = () => {
   ];
 
   useEffect(() => {
-    const loadGrants = async () => {
-      setIsLoading(true);
-      const result = await fetchICTWorksGrants();
-      if (result.success) {
-        setGrants(result.data);
-      } else {
-        toast.error("Failed to load grants. Please try again later.");
+    // Get user data from localStorage for personalization
+    const storedUserData = localStorage.getItem("userData")
+    if (storedUserData) {
+      try {
+        const parsedUserData = JSON.parse(storedUserData)
+        // Pre-fill form data with user information
+        setFormData(prev => ({
+          ...prev,
+          startupName: parsedUserData.company || parsedUserData.startupName || "",
+          contactEmail: parsedUserData.email || "",
+          contactPhone: parsedUserData.phone || "",
+          website: parsedUserData.website || "",
+        }))
+      } catch (error) {
+        console.error("Error parsing user data:", error)
       }
-      setIsLoading(false);
-    };
+    }
+    
+    const loadGrants = async () => {
+      setIsLoading(true)
+      const result = await fetchICTWorksGrants()
+      if (result.success) {
+        setGrants(result.data as Grant[])
+      } else {
+        toast.error("Failed to load grants. Please try again later.")
+      }
+      setIsLoading(false)
+    }
 
-    loadGrants();
-  }, []);
+    loadGrants()
+  }, [])
 
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: string, value: string) => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFormData({ ...formData, pitchDeck: e.target.files[0] });
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedGrant) {
       toast.error("No grant selected for application.");
@@ -146,6 +178,7 @@ const Grants = () => {
   });
 
   return (
+    <DashboardShell userType="founder">
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-12">
         {/* Header Section */}
@@ -162,13 +195,11 @@ const Grants = () => {
         {/* Main Tabs */}
         <Tabs defaultValue="discover" className="mb-12" onValueChange={handleTabChange}>
           <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-2 p-1 bg-muted rounded-md">
+            <TabsList className="grid w-full max-w-md grid-cols-1 p-1 bg-muted rounded-md">
               <TabsTrigger value="discover" className="data-[state=active]:bg-card">
                 Discover Grants
               </TabsTrigger>
-              <TabsTrigger value="applied" className="data-[state=active]:bg-card">
-                My Applications
-              </TabsTrigger>
+              {/* Removed "My Applications" tab trigger */}
             </TabsList>
           </div>
 
@@ -300,12 +331,12 @@ const Grants = () => {
                         </a>
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button
+                            {/* <Button
                               size="sm"
                               onClick={() => setSelectedGrant(grant)}
                             >
                               Apply Now
-                            </Button>
+                            </Button> */}
                           </DialogTrigger>
                           <DialogContent className="max-w-3xl overflow-y-auto max-h-[90vh]">
                             <DialogHeader>
@@ -462,7 +493,7 @@ const Grants = () => {
             </div>
           </TabsContent>
 
-          <TabsContent
+          {/* <TabsContent
             value="applied"
             className="mt-6 animate-in fade-in-50 duration-300"
           >
@@ -487,10 +518,11 @@ const Grants = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </div>
+  </DashboardShell>
   );
 };
 

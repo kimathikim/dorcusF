@@ -11,10 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import API_BASE_URL from '@/lib/api-config';
 
 export default function SignUpPage() {
   const [activeTab, setActiveTab] = useState<"founder" | "investor">("founder");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,14 +27,46 @@ export default function SignUpPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          first_name: firstName,
+          second_name: lastName,
+          email: email,
+          password: password,
+          role: activeTab
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({ 
+          title: "Account created", 
+          description: "Registration successful! Please log in." 
+        });
+        
+        // Redirect to login page
+        router.push('/login');
+      } else {
+        toast({
+          title: "Registration failed",
+          description: data.error || "Failed to create account",
+        });
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: "An error occurred during registration",
+      });
       setIsLoading(false);
-      toast({ title: "Account created", description: `Welcome! Please complete your profile.` });
-
-      // Redirect user to profile setup page with role as a query param
-      router.push(`/profile?role=${activeTab}`);
-    }, 1500);
+    }
   };
 
   return (
@@ -56,8 +90,24 @@ export default function SignUpPage() {
                 <TabsContent value="founder">
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} required />
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -75,8 +125,24 @@ export default function SignUpPage() {
                 <TabsContent value="investor">
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" placeholder="Jane Smith" value={name} onChange={(e) => setName(e.target.value)} required />
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>

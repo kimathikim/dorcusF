@@ -1,8 +1,9 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import DashboardShell from "@/components/dashboard-shell"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
+import { CustomProgress } from "@/components/ui/custom-progress"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -28,13 +29,82 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle,
+  ChevronRight,
+  Plus,
 } from "lucide-react"
 import { Chart } from "@/components/ui/chart"
-import { useState } from "react"
+import API_BASE_URL from "@/lib/api-config"
+
+// Define dashboard data interface
+interface DashboardData {
+  portfolioSummary: {
+    totalInvested: number;
+    totalStartups: number;
+    avgReturn: number;
+    topPerformers: any[] | null;
+  };
+  pipelineSummary: {
+    totalDeals: number;
+    closedDeals: number;
+    pendingDeals: number;
+    recentDeals: Array<{
+      id: string;
+      founder_id: string;
+      startup_name: string | null;
+      industry: string | null;
+      stage: string;
+      status: string;
+      match_percentage: number | null;
+      updated_at: string;
+    }>;
+  };
+  recentActivities: any[];
+}
 
 export default function InvestorDashboardPage() {
   const [timeRange, setTimeRange] = useState("6m")
   const [filterView, setFilterView] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+
+  // Fetch dashboard data from API
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem("authToken");
+        const response = await fetch(`${API_BASE_URL}/investor/dashboard`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Dashboard data:", data);
+          setDashboardData(data);
+        } else {
+          console.error("Failed to fetch dashboard data");
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchDashboardData();
+  }, []);
+
+  // Format currency helper
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(value);
+  };
 
   // Sample data for charts with enhanced styling
   const portfolioPerformanceData = {
@@ -55,12 +125,20 @@ export default function InvestorDashboardPage() {
     ],
   }
 
+  // Update dealFlowData with null checks
   const dealFlowData = {
     labels: ["Screening", "Due Diligence", "Negotiation", "Closed"],
     datasets: [
       {
         label: "Current Deals",
-        data: [8, 5, 3, 2],
+        data: dashboardData && dashboardData.pipelineSummary ? [
+          (dashboardData.pipelineSummary.pendingDeals || 0) - (dashboardData.pipelineSummary.closedDeals || 0),
+          dashboardData.pipelineSummary.recentDeals ? 
+            dashboardData.pipelineSummary.recentDeals.filter(d => d && d.stage === "due_diligence").length : 0,
+          dashboardData.pipelineSummary.recentDeals ? 
+            dashboardData.pipelineSummary.recentDeals.filter(d => d && d.stage === "negotiation").length : 0,
+          dashboardData.pipelineSummary.closedDeals || 0
+        ] : [8, 5, 3, 2],
         backgroundColor: [
           "rgba(99, 102, 241, 0.8)", // Indigo
           "rgba(79, 70, 229, 0.85)", // Darker indigo
@@ -442,105 +520,108 @@ export default function InvestorDashboardPage() {
   ]
 
   // Format currency
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(0)}K`
-    }
-    return `$${amount}`
-  }
+  // This function is already defined earlier in the file, so we can remove this duplicate declaration
   return (
     <DashboardShell userType="investor">
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="container mx-auto max-w-full px-4 overflow-x-hidden">
+        {/* Dashboard Header */}
+        <div className="flex flex-col md:flex-row justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">Investor Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Investor Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back! Here's an overview of your investment activities and portfolio performance.
+              Track your investments, monitor performance, and discover new opportunities.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Tabs defaultValue={timeRange} onValueChange={setTimeRange} className="w-[300px]">
-              <TabsList className="grid w-full grid-cols-4">
+            <Tabs defaultValue={timeRange} onValueChange={setTimeRange}>
+              <TabsList>
                 <TabsTrigger value="1m">1M</TabsTrigger>
                 <TabsTrigger value="3m">3M</TabsTrigger>
                 <TabsTrigger value="6m">6M</TabsTrigger>
                 <TabsTrigger value="1y">1Y</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </div>
-      </div>
-      {/* Portfolio Summary */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-100 dark:border-blue-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Invested</p>
-                <h3 className="text-2xl font-bold mt-1">$1.47M</h3>
-                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">across 7 startups</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-100 dark:border-green-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400">Current Value</p>
-                <div className="flex items-center mt-1">
-                  <h3 className="text-2xl font-bold">$2.1M</h3>
-                  <span className="flex items-center text-sm font-medium text-green-600 dark:text-green-400 ml-2">
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                    42.8%
-                  </span>
-                </div>
-                <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">total ROI</p>
+        {/* Portfolio Overview Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Portfolio Value</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "Loading..." : formatCurrency(dashboardData?.portfolioSummary.totalInvested || 0)}
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 font-medium flex items-center">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  +12.5%
+                </span>{" "}
+                from last period
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Portfolio Companies</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "Loading..." : dashboardData?.portfolioSummary.totalStartups || 0}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-indigo-100 dark:border-indigo-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Active Deals</p>
-                <h3 className="text-2xl font-bold mt-1">18</h3>
-                <p className="text-xs text-indigo-600/70 dark:text-indigo-400/70 mt-1">in pipeline</p>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 font-medium flex items-center">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  +2
+                </span>{" "}
+                new this quarter
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Deals</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "Loading..." : 
+                  (dashboardData && dashboardData.pipelineSummary ? 
+                    (dashboardData.pipelineSummary.pendingDeals || 0) : 0)}
               </div>
-              <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                <LineChart className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs text-muted-foreground">
+                <span className="text-amber-600 font-medium flex items-center">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  +5
+                </span>{" "}
+                in pipeline
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg. Return</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "Loading..." : `${dashboardData?.portfolioSummary.avgReturn || 0}%`}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-100 dark:border-amber-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Profile Completion</p>
-                <h3 className="text-2xl font-bold mt-1">85%</h3>
-                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">3 steps remaining</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-            </div>
-            <Progress value={85} className="h-2 mt-4 bg-amber-100 dark:bg-amber-900/50" indicatorClassName="bg-amber-500 dark:bg-amber-400" />
-          </CardContent>
-        </Card>
-      </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 font-medium flex items-center">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  +2.5%
+                </span>{" "}
+                from last period
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Portfolio Performance */}
       <Card className="overflow-hidden border-blue-100 dark:border-blue-800/50">
@@ -833,6 +914,67 @@ export default function InvestorDashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Recent Deals */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Zap className="h-5 w-5 mr-2 text-amber-500" />
+            Recent Deals
+          </CardTitle>
+          <CardDescription>Your most recent deal activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {loading ? (
+              <p>Loading recent deals...</p>
+            ) : dashboardData && dashboardData.pipelineSummary && 
+               dashboardData.pipelineSummary.recentDeals && 
+               dashboardData.pipelineSummary.recentDeals.length > 0 ? (
+              dashboardData.pipelineSummary.recentDeals.slice(0, 5).map((deal) => (
+                <div key={deal.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Startup" />
+                      <AvatarFallback>{deal.startup_name ? deal.startup_name.substring(0, 2).toUpperCase() : "ST"}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h4 className="font-medium">{deal.startup_name || "Unnamed Startup"}</h4>
+                      <p className="text-sm text-muted-foreground">{deal.industry || "Unknown Industry"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={
+                      deal.stage === "closed_won" ? "default" :
+                      deal.stage === "closed_lost" ? "destructive" :
+                      deal.stage === "negotiation" ? "secondary" :
+                      "outline"
+                    }>
+                      {deal.stage === "closed_won" ? "Closed Won" :
+                       deal.stage === "closed_lost" ? "Closed Lost" :
+                       deal.stage === "negotiation" ? "Negotiation" :
+                       deal.stage === "due_diligence" ? "Due Diligence" :
+                       "Screening"}
+                    </Badge>
+                    <Button variant="ghost" size="icon">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">No recent deals found</p>
+                <Button variant="outline" className="mt-4">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add New Deal
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      </div>
     </DashboardShell>
   );
 }

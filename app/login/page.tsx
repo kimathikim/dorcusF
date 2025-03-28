@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import API_BASE_URL from '@/lib/api-config';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8080/api/v1/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -30,68 +31,62 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
         credentials: "include",
       });
-      console.log(response);
+      
       const data = await response.json();
-      console.log(data);
-        localStorage.setItem("authToken", data.token);
-
+      
       if (response.ok) {
-        const roles = await fetch("http://127.0.0.1:8080/api/v1/get/me", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-          },
+        // Store token and user data in localStorage
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userData", JSON.stringify(data.user));
+        
+        toast({
+          title: "Login successful",
+          description: "Welcome back to FundMe!",
         });
-        const authData = await roles.json();
-        console.log(authData);
-        setIsLoading(true);
-        if (roles.ok) {
-          toast({
-            title: "auth2",
-            description: "accepted",
-          })
-        }
-        setIsLoading(true);
 
-        if (roles.ok) {
-          toast({
-            title: "Login successful",
-            description: "Welcome back to FundMe!",
-          });
+        // Navigate based on user roles - handle both role and roles fields
+        const userRoles = data.user.roles || data.user.role || [];
+        
+        if (userRoles.length > 1) {
+          const selectedRole = window.prompt(
+            `You have multiple roles: ${userRoles.join(", ")}. Please enter the role you want to use:`
+          );
 
-          if (authData.roles.length > 1) {
-            const selectedRole = window.prompt(
-              `You have multiple roles: ${authData.roles.join(", ")}. Please enter the role you want to use:`
-            );
-
-            if (selectedRole && authData.roles.includes(selectedRole)) {
-              window.location.href = `/dashboard/${selectedRole}`;
-            } else {
-              toast({
-                title: "Invalid role",
-                description: "The selected role is not valid.",
-              });
-            }
+          if (selectedRole && userRoles.includes(selectedRole)) {
+            localStorage.setItem("currentRole", selectedRole);
+            window.location.href = `/dashboard/${selectedRole}`;
           } else {
-            const role = authData.roles[0];
-            window.location.href = `/dashboard/${role}`;
+            // Default to first role if invalid selection
+            const defaultRole = userRoles[0];
+            localStorage.setItem("currentRole", defaultRole);
+            window.location.href = `/dashboard/${defaultRole}`;
           }
+        } else if (userRoles.length === 1) {
+          const role = userRoles[0];
+          localStorage.setItem("currentRole", role);
+          window.location.href = `/dashboard/${role}`;
+        } else {
+          // Handle case with no roles
+          toast({
+            title: "Login issue",
+            description: "No roles assigned to your account. Please contact support.",
+          });
+          setIsLoading(false);
         }
       } else {
         toast({
           title: "Login failed",
           description: data.message || "Invalid credentials",
         });
-
-      setIsLoading(false);
+        setIsLoading(false);
       }
-
     } catch (error) {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: "An error occurred. Please try again.",
+        description: "An error occurred during login",
       });
+      setIsLoading(false);
     }
   };
 

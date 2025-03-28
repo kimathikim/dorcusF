@@ -6,6 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import DashboardShell from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,6 +33,7 @@ import {
   Save,
   ChevronRight,
 } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api-config";
 
 // Mock user data - in a real app, this would come from your auth system
 const userData = {
@@ -46,7 +48,14 @@ export default function FounderProfilePage() {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [pith_deck, setPitchDeck] = useState<File | null>(null);
+  const [pith_deck, setPitchDeck] = useState<File | null>(null)
+  const [userData, setUserData] = useState({
+    name: "",
+    email: "",
+    roles: [],
+    avatarUrl: "/placeholder.svg?height=100&width=100",
+    joinedDate: "January 2023",
+  })
   const [startupData, setStartupData] = useState({
     startup_name: "",
     mission_statement: "",
@@ -56,12 +65,9 @@ export default function FounderProfilePage() {
     bussiness_model: "",
     revenue_streams: "",
     traction: "",
-    scaling_potential:
-      "",
-    competition:
-      "",
-    leadership_team:
-      "",
+    scaling_potential: "",
+    competition: "",
+    leadership_team: "",
     team_size: "",
     fund_required: 0,
     location: "",
@@ -70,6 +76,27 @@ export default function FounderProfilePage() {
   })
 
   const [formData, setFormData] = useState({ ...startupData })
+
+  // Load user data from localStorage
+  useEffect(() => {
+    const storedUserData = localStorage.getItem("userData")
+    if (storedUserData) {
+      try {
+        const parsedUserData = JSON.parse(storedUserData)
+        setUserData({
+          name: parsedUserData.firstName && parsedUserData.lastName 
+            ? `${parsedUserData.firstName} ${parsedUserData.lastName}`
+            : parsedUserData.name || "User",
+          email: parsedUserData.email || "",
+          roles: parsedUserData.roles || ["Founder"],
+          avatarUrl: parsedUserData.avatar || "/placeholder.svg?height=100&width=100",
+          joinedDate: parsedUserData.joinedDate || "January 2023",
+        })
+      } catch (error) {
+        console.error("Error parsing user data:", error)
+      }
+    }
+  }, [])
 
   const industries = [
     "Technology",
@@ -88,7 +115,7 @@ export default function FounderProfilePage() {
     // In a real app, you would fetch the profile data here
     const fetchProfileData = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/v1/founder/profile", {
+        const response = await fetch(`${API_BASE_URL}/founder/profile`, {
           headers: {
             "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
           },
@@ -132,12 +159,12 @@ export default function FounderProfilePage() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  for (const [key, value] of Object.entries(formData)) {
-    if (value === 0 || value === "") {
-      alert(`Please fill out the ${key} field.`);
-      return;
-    }
-  }
+  // for (const [key, value] of Object.entries(formData)) {
+  //   if (value === 0 || value === "") {
+  //     alert(`Please fill out the ${key} field.`);
+  //     return;
+  //   }
+  // }
 
   const formDataToSend = new FormData();
 
@@ -150,7 +177,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   formDataToSend.append("data", JSON.stringify(formData));
   console.log(formDataToSend);
   try {
-    const response = await fetch("http://127.0.0.1:8080/api/v1/founder/profile", {
+    const response = await fetch(`${API_BASE_URL}/founder/profile`, {
       method: "PUT",
       body: formDataToSend,
       headers: {
@@ -172,9 +199,10 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 };
   return (
+    
+      <DashboardShell userType="founder">
     <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main className="flex-1 container mx-auto py-10 px-4 md:px-6">
+           <main className="flex-1 container mx-auto py-10 px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left Sidebar - User Info */}
           <div className="md:col-span-1">
@@ -196,9 +224,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Roles</h3>
                     <div className="flex flex-wrap gap-2">
                       {userData.roles.map((role, index) => (
-                        <Badge key={index} variant="secondary">
-                          {role}
-                        </Badge>
+                        <Badge key={index} variant="secondary">{role}</Badge>
                       ))}
                     </div>
                   </div>
@@ -653,8 +679,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </div>
       </main>
-      <SiteFooter />
-    </div>
+      </div>
+    </DashboardShell>
   )
 }
 

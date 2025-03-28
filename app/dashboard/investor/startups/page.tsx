@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import { API_BASE_URL } from "@/lib/api-config"
 import { SiteHeader } from "@/components/site-header"
 import DashboardShell from "@/components/dashboard-shell"
 import { SiteFooter } from "@/components/site-footer"
@@ -10,8 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CustomProgress } from "@/components/ui/custom-progress"
 import {
   ChevronRight,
   Target,
@@ -173,7 +174,7 @@ export default function StartupDiscoveryPage() {
     // post all the deals of the founder to http://localhost:8080/api/v1/investor/deals
     const token = localStorage.getItem("authToken");
     try {
-      const response = await fetch("http://localhost:8080/api/v1/dealflow/", {
+      const response = await fetch(`${API_BASE_URL}/dealflow/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -225,26 +226,78 @@ export default function StartupDiscoveryPage() {
     async function fetchStartups() {
       try {
         setLoading(true)
-        // In a real app, uncomment this code to fetch from your API
         const token = localStorage.getItem("authToken");
-        const response = await fetch("http://localhost:8080/api/v1/investor/founderProfile", {
+        const response = await fetch(`${API_BASE_URL}/investor/founderProfile`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        
         if (response.ok) {
           const data = await response.json();
-          const mappedFounders = await Promise.all(data.founder_profiles.map(async (profile: any) => {
-            const matchResponse = await fetch(profile.match, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            const matchData = matchResponse.ok ? await matchResponse.json() : 0
+          console.log("API Response:", data); // Log the response to see its structure
+          
+          // Check if data is an array or has a founder_profiles property
+          const profilesArray = Array.isArray(data) ? data : 
+                               (data.founder_profiles || data.profiles || []);
+          
+          const mappedFounders = await Promise.all(profilesArray.map(async (profile: any) => {
+            // Check if profile has a match property that's a URL
+            let matchScore = 0;
+            if (profile.match && typeof profile.match === 'string') {
+              try {
+                // Extract the path part after /api/v1/ and use API_BASE_URL
+                let matchUrl;
+                if (profile.match.includes('/api/v1/')) {
+                  // Extract the path after /api/v1/
+                  const pathPart = profile.match.split('/api/v1/')[1];
+                  matchUrl = `${API_BASE_URL}/${pathPart}`;
+                } else if (profile.match.startsWith('/')) {
+                  // It's a relative path
+                  matchUrl = `${API_BASE_URL}${profile.match}`;
+                } else if (profile.match.startsWith('http')) {
+                  // It's a full URL, but we want to use our API_BASE_URL
+                  // Extract the path after the domain and port
+                  const urlParts = profile.match.split('/');
+                  const pathPart = urlParts.slice(3).join('/');
+                  matchUrl = `${API_BASE_URL}/${pathPart}`;
+                } else {
+                  // Just a plain endpoint
+                  matchUrl = `${API_BASE_URL}/${profile.match}`;
+                }
+                
+                console.log("Original match URL:", profile.match);
+                console.log("Reformatted match URL:", matchUrl);
+                
+                const matchResponse = await fetch(matchUrl, {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+                
+                if (matchResponse.ok) {
+                  const matchData = await matchResponse.json();
+                  console.log("Match Data:", matchData); // Log the match data
+                  matchScore = matchData.match_probability;
+                }
+              } catch (error) {
+                console.error("Error fetching match data:", error);
+              }
+            } else if (profile.match_score !== undefined) {
+              matchScore = profile.match_score;
+            } else if (profile.match_probability !== undefined) {
+              matchScore = profile.match_probability;
+            }
+            
+            // Get user data from the correct location in the response
+            const user = profile.user || {};
+            const firstName = user.first_name || user.firstName || '';
+            const lastName = user.second_name || user.lastName || '';
+            
             return {
-              UserID: profile._id,
-              Name: `${profile.user.first_name} ${profile.user.second_name}`,
-              Email: profile.user.email,
+              UserID: profile._id || profile.id || '',
+              Name: `${firstName} ${lastName}`.trim() || "Unknown",
+              Email: user.email || '',
               Avatar: "/placeholder.svg?height=80&width=80",
               StartupName: profile.startup_name || "Unknown Startup",
               Industry: profile.industry || "Unknown Industry",
@@ -263,28 +316,30 @@ export default function StartupDiscoveryPage() {
               PitchDeck: profile.pitch_deck || "",
               FundAllocation: profile.funding_allocation || "No fund allocation data provided.",
               Founded: "Unknown",
-              MatchScore: matchData.match_probability,
+              MatchScore: matchScore,
               Tags: profile.tags || [],
               Bookmarked: profile.bookmark || false,
             };
           }));
-          console.log("Founders:", mappedFounders);
+          
+          console.log("Mapped Founders:", mappedFounders);
           setFounders(mappedFounders);
         } else {
-          console.error("Failed to fetch startups.");
+          console.error("Failed to fetch startups:", response.status, response.statusText);
+          // Fallback to mock data for development
+          setFounders(mockFounders);
         }
-
-        // Using mock data for development
-        setTimeout(() => {
-          //         setFounders(mockFounders)
-          setLoading(false)
-        }, 500)
+        
+        setLoading(false);
       } catch (error) {
-        console.error("Error fetching startups:", error)
-        setLoading(false)
+        console.error("Error fetching startups:", error);
+        // Fallback to mock data when there's an error
+        setFounders(mockFounders);
+        setLoading(false);
       }
     }
-    fetchStartups()
+    
+    fetchStartups();
   }, [])
 
   // Toggle bookmark status
@@ -331,7 +386,7 @@ export default function StartupDiscoveryPage() {
       .sort((a, b) => {
         switch (sortBy) {
           case "match":
-            return b.MatchScore - a.MatchScore
+            return (b.MatchScore ?? 0) - (a.MatchScore ?? 0)
           case "funding":
             return b.FundRequired - a.FundRequired
           case "name":
@@ -622,28 +677,28 @@ export default function StartupDiscoveryPage() {
                             <span className="text-sm">R&D</span>
                             <span className="text-sm font-medium">40%</span>
                           </div>
-                          <Progress value={40} className="h-2" />
+                          <CustomProgress value={40} className="h-2" />
                         </div>
                         <div>
                           <div className="flex justify-between mb-1">
                             <span className="text-sm">Marketing</span>
                             <span className="text-sm font-medium">30%</span>
                           </div>
-                          <Progress value={30} className="h-2" />
+                          <CustomProgress value={30} className="h-2" />
                         </div>
                         <div>
                           <div className="flex justify-between mb-1">
                             <span className="text-sm">Operations</span>
                             <span className="text-sm font-medium">20%</span>
                           </div>
-                          <Progress value={20} className="h-2" />
+                          <CustomProgress value={20} className="h-2" />
                         </div>
                         <div>
                           <div className="flex justify-between mb-1">
                             <span className="text-sm">Legal</span>
                             <span className="text-sm font-medium">10%</span>
                           </div>
-                          <Progress value={10} className="h-2" />
+                          <CustomProgress value={10} className="h-2" />
                         </div>
                       </div>
                     </CardContent>
@@ -804,9 +859,13 @@ export default function StartupDiscoveryPage() {
                     >
                       <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4">
                         <div className="flex justify-between items-start">
-                          <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"} className="mb-2">
-                            {founder.MatchScore}% Match
-                          </Badge>
+                          <div className="mb-2">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>Match Score</span>
+                              <span>{founder.MatchScore || 0}%</span>
+                            </div>
+                            <CustomProgress value={founder.MatchScore || 0} className="h-2" />
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -876,7 +935,7 @@ export default function StartupDiscoveryPage() {
                         <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 md:w-64 flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-center mb-3">
-                              <Badge variant={founder.MatchScore > 85 ? "default" : "secondary"}>
+                              <Badge variant={founder.MatchScore && founder.MatchScore > 85 ? "default" : "secondary"}>
                                 {founder.MatchScore}% Match
                               </Badge>
                               <Button
@@ -952,5 +1011,4 @@ export default function StartupDiscoveryPage() {
     </DashboardShell>
   )
 }
-
 
